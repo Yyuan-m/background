@@ -1,0 +1,166 @@
+@use '../styles/variables.scss' as *;
+
+.sidebar {
+  overflow: auto;
+  height: 100vh;
+  position: fixed;
+  left: 0;
+  top: 0;
+  bottom: 0;
+  z-index: 100;
+  box-shadow: 0 4px 16px rgba(0,0,0,0.12);
+  background: linear-gradient(180deg, var(--sidebar-gradient-start, #0f1f3a) 0%, var(--sidebar-gradient-end, #0a1628) 100%) !important;
+  border-right: 1px solid var(--border-color, #e2e8f0);
+  // GPU加速：提前告知浏览器width即将变化，避免重排抖动
+  will-change: width;
+  // 宽度过渡由 antd Sider 的 width/collapsedWidth props 驱动，
+  // 不再使用 CSS 变量覆盖，过渡在此定义
+  transition: width 0.28s cubic-bezier(0.25, 0.1, 0.25, 1) !important;
+
+  &-logo {
+    height: $header-height;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 10px;
+    padding: 0 16px;
+    border-bottom: 1px solid var(--sidebar-border, rgba(255, 255, 255, 0.08));
+
+    &-text {
+      display: flex;
+      flex-direction: column;
+      line-height: 1.2;
+    }
+
+    .logo-title {
+      font-size: 16px;
+      font-weight: 700;
+      color: var(--accent-color, #c9a96e);
+      letter-spacing: 2px;
+    }
+
+    .logo-subtitle {
+      font-size: 11px;
+      color: var(--accent-color, #c9a96e);
+      letter-spacing: 4px;
+    }
+  }
+
+  .ant-menu {
+    background: transparent !important;
+    padding: 8px 0;
+
+    .ant-menu-item {
+      margin: 2px 8px;
+      border-radius: 8px;
+      color: var(--text-sidebar, rgba(255, 255, 255, 0.65));
+      height: 44px;
+      line-height: 44px;
+      transition: all 0.2s ease;
+
+      &:hover {
+        color: var(--text-sidebar-hover, #c9a96e);
+        background: var(--bg-sidebar-hover, rgba(201, 169, 110, 0.1));
+      }
+
+      &.ant-menu-item-selected {
+        background: var(--bg-sidebar-active, linear-gradient(90deg, rgba(201, 169, 110, 0.2) 0%, rgba(201, 169, 110, 0.05) 100%));
+        color: var(--text-sidebar-active, #c9a96e);
+        font-weight: 500;
+        border-right: 2px solid var(--accent-color, #c9a96e);
+      }
+    }
+
+    .ant-menu-submenu {
+      margin: 2px 0;
+
+      .ant-menu-submenu-title {
+        margin: 2px 8px;
+        border-radius: 8px;
+        color: var(--text-sidebar, rgba(255, 255, 255, 0.65));
+        height: 44px;
+        line-height: 44px;
+        transition: all 0.2s ease;
+
+        &:hover {
+          color: var(--text-sidebar-hover, #c9a96e);
+          background: var(--bg-sidebar-hover, rgba(201, 169, 110, 0.1));
+        }
+      }
+
+      &.ant-menu-submenu-open > .ant-menu-submenu-title {
+        color: var(--text-sidebar-active, #c9a96e);
+      }
+
+      .ant-menu-sub {
+        background: rgba(0, 0, 0, 0.2) !important;
+
+        .ant-menu-item {
+          padding-left: 56px !important;
+          margin: 1px 8px;
+          height: 38px;
+          line-height: 38px;
+          font-size: 13px;
+        }
+      }
+    }
+  }
+
+  &.ant-layout-sider-collapsed {
+    .sidebar-logo {
+      padding: 0 12px;
+    }
+  }
+}
+
+// ==================== 横向布局 ====================
+.sidebar-horizontal {
+  display: flex;
+  align-items: center;
+  height: 64px;
+  padding: 0 24px;
+  position: sticky;
+  top: 0;
+  z-index: 100;
+  box-shadow: 0 1px 3px rgba(0,0,0,0.08);
+  background: var(--bg-container, #ffffff);
+  border-bottom: 1px solid var(--border-color, #e2e8f0);
+
+  &-logo {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    cursor: pointer;
+    flex-shrink: 0;
+    margin-right: 24px;
+  }
+
+  &-logo-text {
+    display: flex;
+    flex-direction: column;
+    line-height: 1.2;
+
+    .logo-title {
+      font-size: 15px;
+      font-weight: 700;
+      color: var(--accent-color, #c9a96e);
+      letter-spacing: 2px;
+    }
+
+    .logo-subtitle {
+      font-size: 10px;
+      color: var(--text-muted, #94a3b8);
+      letter-spacing: 3px;
+    }
+  }
+
+  &-menu {
+    .ant-menu-item {
+      border-radius: 8px;
+    }
+
+    .ant-menu-item-selected {
+      color: var(--primary-color, #3b82f6) !important;
+    }
+  }
+}

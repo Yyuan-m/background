@@ -1,0 +1,203 @@
+@use './variables.scss' as *;
+
+* {
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box;
+}
+
+html, body, #root {
+  height: 100%;
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  // 字号由 --font-size-base 变量控制
+  font-size: var(--font-size-base, 14px);
+}
+
+body {
+  background: var(--bg-page, #f0f2f5);
+  color: var(--text-primary, #0f172a);
+}
+
+// 页面切换动画控制
+html[data-page-animation='false'] {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0s !important;
+    transition-duration: 0s !important;
+  }
+}
+
+// 色弱模式（通过 data 属性双保险）
+html[data-color-weak='true'] {
+  filter: invert(80%) hue-rotate(180deg);
+
+  img, video, canvas {
+    filter: invert(100%) hue-rotate(180deg);
+  }
+}
+
+// 灰色模式（通过 data 属性双保险）
+html[data-gray-mode='true'] {
+  filter: grayscale(100%);
+}
+
+.page-container {
+  padding: 24px;
+  min-height: auto;
+  height: auto;
+}
+
+// 滚动条
+::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+::-webkit-scrollbar-thumb {
+  background: var(--scrollbar-thumb, rgba(0, 0, 0, 0.15));
+  border-radius: 3px;
+}
+::-webkit-scrollbar-thumb:hover {
+  background: var(--scrollbar-thumb-hover, rgba(0, 0, 0, 0.25));
+}
+
+// 表格横向滚动：使用细滚动条，配合 scroll={{ x }} 实现表体内部滚动，
+// fixed: 'right' 的操作列固定在右侧，不产生页面级横向滚动条。
+// （参考 Ant Design Pro 等主流后台模板的通用做法）
+.ant-table-body {
+  &::-webkit-scrollbar {
+    height: 8px;
+    width: 8px;
+  }
+  &::-webkit-scrollbar-track {
+    background: transparent;
+  }
+  &::-webkit-scrollbar-thumb {
+    background: var(--scrollbar-thumb, rgba(0, 0, 0, 0.18));
+    border-radius: 4px;
+  }
+  &::-webkit-scrollbar-thumb:hover {
+    background: var(--scrollbar-thumb-hover, rgba(0, 0, 0, 0.3));
+  }
+}
+
+// 兜底：表格内容容器同样使用细滚动条，避免出现默认粗滚动条
+.ant-table-content {
+  overflow-x: auto !important;
+  &::-webkit-scrollbar {
+    height: 8px;
+  }
+  &::-webkit-scrollbar-thumb {
+    background: var(--scrollbar-thumb, rgba(0, 0, 0, 0.18));
+    border-radius: 4px;
+  }
+}
+
+// 固定列阴影分隔线，提升固定列与滚动列的视觉边界
+.ant-table-cell-fix-right {
+  box-shadow: -2px 0 6px rgba(0, 0, 0, 0.06) !important;
+}
+
+// ==================== 全局对比度修复 ====================
+// 表格文字颜色确保与背景有足够对比度
+.ant-table {
+  color: var(--text-primary, #0f172a);
+
+  // 表头文字
+  .ant-table-thead > tr > th {
+    color: var(--text-primary, #0f172a);
+    background: var(--table-header-bg, #fafbfc) !important;
+    font-weight: 600;
+  }
+
+  // 表格行文字
+  .ant-table-tbody > tr > td {
+    color: var(--text-primary, #0f172a);
+  }
+
+  // 表格行悬浮
+  .ant-table-tbody > tr:hover > td {
+    background: var(--table-row-hover, #f8fafc) !important;
+  }
+}
+
+// 确保按钮文字在所有主题下都有足够对比度
+.ant-btn-primary {
+  color: var(--text-on-primary, #ffffff) !important;
+
+  &:hover, &:focus {
+    color: var(--text-on-primary, #ffffff) !important;
+  }
+}
+
+// 危险按钮文字颜色
+.ant-btn-dangerous {
+  &.ant-btn-primary {
+    color: #ffffff !important;
+  }
+}
+
+// 链接按钮在暗色主题下保持可见
+.ant-btn-link {
+  color: var(--primary-color, #3b82f6);
+
+  &:hover, &:focus {
+    color: var(--primary-light, #60a5fa);
+  }
+}
+
+// 描述列表文字对比度
+.ant-descriptions {
+  .ant-descriptions-item-label {
+    color: var(--text-secondary, #64748b);
+  }
+  .ant-descriptions-item-content {
+    color: var(--text-primary, #0f172a);
+  }
+}
+
+// 卡片标题对比度
+.ant-card {
+  .ant-card-head-title {
+    color: var(--text-primary, #0f172a);
+  }
+}
+
+// 表单标签对比度
+.ant-form-item-label > label {
+  color: var(--text-primary, #0f172a) !important;
+}
+
+// 分页器对比度
+.ant-pagination {
+  .ant-pagination-item a {
+    color: var(--text-secondary, #64748b);
+  }
+  .ant-pagination-item-active {
+    border-color: var(--primary-color, #3b82f6);
+    a {
+      color: var(--primary-color, #3b82f6);
+    }
+  }
+}
+
+// 输入框 placeholder 对比度
+.ant-input::placeholder,
+.ant-input-affix-wrapper .ant-input::placeholder,
+.ant-select-selection-placeholder {
+  color: var(--text-muted, #94a3b8) !important;
+}
+
+.page-title {
+  font-size: 20px;
+  font-weight: 600;
+  color: var(--text-primary, #0f172a);
+  margin-bottom: 20px;
+  padding-left: 12px;
+  border-left: 3px solid var(--primary-color, #3b82f6);
+}

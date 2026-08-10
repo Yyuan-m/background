@@ -1,0 +1,92 @@
+@use '../../styles/variables.scss' as *;
+
+.dashboard-page {
+  .stats-row {
+    margin-bottom: 0;
+  }
+
+  .chart-card,
+  .table-card {
+    background: var(--bg-container, #ffffff);
+    border: 1px solid var(--border-color, #e2e8f0);
+    border-radius: 8px;
+    box-shadow: 0 2px 8px rgba(0,0,0,0.08);
+    transition: $transition;
+
+    &:hover {
+      background: var(--bg-hover, #f5f5f5);
+      box-shadow: 0 4px 16px rgba(0,0,0,0.12);
+    }
+
+    .ant-card-head {
+      border-bottom: 1px solid var(--border-color, #e2e8f0);
+      padding: 0 20px;
+      min-height: 48px;
+      background: transparent;
+
+      .ant-card-head-title {
+        font-size: 15px;
+        font-weight: 600;
+        color: var(--text-primary, #0f172a);
+        padding: 12px 0;
+      }
+    }
+
+    // 卡片标题栏（含快捷跳转箭头）
+    .dashboard-card-title {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 8px;
+      width: 100%;
+
+      .dashboard-card-title-icon {
+        margin-right: 6px;
+      }
+    }
+
+    .dashboard-card-jump {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      width: 24px;
+      height: 24px;
+      border: none;
+      border-radius: 6px;
+      background: transparent;
+      color: var(--text-muted, #94a3b8);
+      cursor: pointer;
+      font-size: 13px;
+      transition: all 0.25s ease;
+      flex-shrink: 0;
+
+      &:hover {
+        background: color-mix(in srgb, var(--primary-color, #3b82f6) 12%, transparent);
+        color: var(--primary-color, #3b82f6);
+        transform: translateX(2px);
+      }
+
+      &:focus-visible {
+        outline: 2px solid var(--primary-color, #3b82f6);
+        outline-offset: 1px;
+      }
+    }
+
+    .ant-card-body {
+      padding: 20px;
+    }
+  }
+
+  .ant-table-wrapper {
+    .ant-table-thead > tr > th {
+      background: var(--bg-container, #fafafa);
+      font-weight: 600;
+      color: var(--text-primary, #0f172a);
+      font-size: 13px;
+    }
+
+    .ant-table-tbody > tr:hover > td {
+      background: var(--bg-hover, #f5f5f5) !important;
+    }
+  }
+}

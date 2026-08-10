@@ -1,0 +1,61 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="utf-8" />
+    <link rel="icon" href="/favicon.ico" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta name="theme-color" content="#1a365d" />
+    <meta name="description" content="豪华汽车租赁后台管理系统" />
+    <title>LUXURY CAR - 豪华汽车租赁后台管理系统</title>
+  </head>
+  <body>
+    <div id="root"></div>
+    <script>
+      // ==================== 全局运行时配置 ====================
+      // 生产环境部署时，运维只需修改此处的 apiBaseUrl 即可切换后端地址，
+      // 无需重新构建前端代码。
+      window.__APP_CONFIG__ = {
+        // 后端API基础地址
+        //   开发环境: '/api'（配合 vite.config.js 中的 proxy 代理到后端）
+        //   生产环境: 'http://your-server:8080/api'（直接请求后端地址）
+        apiBaseUrl: '',
+
+        // 后端静态资源（图片/文件）基础地址
+        //   开发环境留空（靠 vite.config.js 中的 /uploads 代理）
+        //   生产环境填后端 origin，如 'http://your-server:8088'
+        assetBaseUrl: '',
+
+        // 应用名称（显示在浏览器标题栏）
+        appName: 'LUXURY CAR',
+
+        // 应用副标题
+        appSubtitle: '豪华汽车租赁后台管理系统',
+
+        // 应用版本号
+        appVersion: '0.2.0',
+
+        // 是否启用 Mock 数据（开发环境默认 true，生产环境 false）
+        // enableMock: true,
+
+        // 是否启用前端日志（调试时可打开）
+        // enableLogger: true,
+
+        // 日志级别: debug | info | warn | error | none
+        // logLevel: 'warn',
+
+        // Sentry DSN（接入错误监控时填写）
+        // sentryDSN: 'https://xxx@sentry.io/xxx',
+
+        // 国际化语言（预留）
+        locale: 'zh-CN',
+
+        // 字典数据（后端下发后填充）
+        dictionary: [],
+
+        // 登录用户数据（登录后填充，未登录为 null）
+        user: null,
+      };
+    </script>
+    <script type="module" src="/src/index.jsx"></script>
+  </body>
+</html>

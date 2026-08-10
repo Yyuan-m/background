@@ -1,0 +1,12 @@
+@use '../styles/variables.scss' as *;
+
+.main-header {
+  .ant-layout-header {
+    background: var(--bg-container, #ffffff);
+    border-bottom: 1px solid var(--border-color, #e2e8f0);
+  }
+
+  .user-dropdown:hover {
+    background: var(--bg-hover, #f5f5f5) !important;
+  }
+}

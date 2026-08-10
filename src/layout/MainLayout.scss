@@ -1,0 +1,221 @@
+@use '../styles/variables.scss' as *;
+
+.main-layout {
+  background: var(--bg-page, #f0f2f5);
+  //GPU加速：提前告知浏览器margin-left即将变化，与Sidebar的width过渡同步
+  will-change: margin-left;
+  transition: margin-left 0.28s cubic-bezier(0.25, 0.1, 0.25, 1);
+  display: flex;
+  flex-direction: column;
+  // 固定视口高度，header 在顶部、footer 在底部始终可见，中间 content 区域独立滚动
+  height: 100vh;
+  overflow: hidden;
+}
+
+.breadcrumb-wrapper {
+  padding: 12px 24px;
+  background: var(--bg-container, #ffffff);
+  border-bottom: 1px solid var(--border-color, #e2e8f0);
+  display: flex;
+  align-items: center;
+  gap: 0;
+
+  .breadcrumb-inner {
+    flex: 1;
+    min-width: 0;
+    overflow: hidden;
+
+    .ant-breadcrumb {
+      font-size: 13px;
+      white-space: nowrap;
+
+      .ant-breadcrumb-link {
+        color: var(--text-secondary, #64748b);
+      }
+
+      .ant-breadcrumb-separator {
+        color: var(--text-muted, #94a3b8);
+      }
+
+      .ant-breadcrumb-link .anticon,
+      .anticon {
+        margin-inline-end: 4px !important;
+        margin-right: 4px !important;
+      }
+
+      a {
+        color: var(--text-secondary, #64748b);
+        transition: color 0.2s;
+
+        &:hover {
+          color: var(--primary-color, #3b82f6);
+        }
+      }
+    }
+  }
+}
+
+.breadcrumb-more-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 28px;
+  height: 28px;
+  border-radius: 6px;
+  cursor: pointer;
+  color: var(--text-secondary, #64748b);
+  font-size: 14px;
+  transition: all 0.2s;
+  flex-shrink: 0;
+
+  &:hover {
+    background: var(--bg-hover, #f5f5f5);
+    color: var(--primary-color, #3b82f6);
+  }
+}
+
+.main-content {
+  padding: 0;
+  flex: 1;
+  // 内容区独立滚动，header/footer 始终可见
+  overflow-y: auto;
+  overflow-x: hidden;
+}
+
+.tabs-wrapper {
+  background: var(--bg-container, #ffffff);
+  padding: 0 16px;
+  border-bottom: 1px solid var(--border-color, #e2e8f0);
+
+  .ant-tabs {
+    margin-bottom: 0;
+
+    .ant-tabs-nav {
+      margin-bottom: 0;
+
+      &::before {
+        border-bottom: none;
+      }
+    }
+
+    .ant-tabs-tab {
+      padding: 6px 12px;
+      font-size: 13px;
+      border-radius: 4px 4px 0 0;
+      background: transparent;
+      border: 1px solid transparent;
+      transition: all 0.2s;
+
+      &:hover {
+        color: var(--primary-color, #3b82f6);
+      }
+    }
+
+    .ant-tabs-tab-active {
+      background: var(--bg-page, #f0f2f5);
+      border-color: var(--border-color, #e2e8f0);
+      border-bottom-color: transparent;
+    }
+  }
+
+  &--simple {
+    .ant-tabs {
+      .ant-tabs-tab {
+        border-radius: 0;
+        border: none;
+        border-bottom: 2px solid transparent;
+        padding: 8px 16px;
+
+        &:hover {
+          color: var(--primary-color, #3b82f6);
+          border-bottom-color: transparent;
+        }
+      }
+
+      .ant-tabs-tab-active {
+        background: transparent;
+        border-color: transparent;
+        border-bottom-color: var(--primary-color, #3b82f6);
+        color: var(--primary-color, #3b82f6);
+        font-weight: 500;
+      }
+
+      .ant-tabs-ink-bar {
+        background: var(--primary-color, #3b82f6);
+      }
+    }
+  }
+}
+
+.tab-label-custom {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.tab-close-btn {
+  font-size: 10px;
+  color: var(--text-secondary, #64748b);
+  padding: 2px;
+  border-radius: 2px;
+  transition: all 0.2s;
+
+  &:hover {
+    color: var(--error-color, #ef4444);
+    background: rgba(239, 68, 68, 0.1);
+  }
+}
+
+// ==================== 底部联系我们模块 ====================
+.app-footer {
+  background: var(--bg-container, #ffffff);
+  border-top: 1px solid var(--border-color, #e2e8f0);
+  padding: 12px 24px;
+  margin-top: auto;
+  // 固定在 main-layout 底部，不被 flex 压缩
+  flex-shrink: 0;
+
+  .app-footer-inner {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 20px;
+    font-size: 13px;
+  }
+
+  .app-footer-title {
+    color: var(--text-primary, #0f172a);
+    font-weight: 600;
+  }
+
+  .app-footer-link {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    color: var(--text-secondary, #64748b);
+    text-decoration: none;
+    transition: color 0.2s;
+    cursor: pointer;
+
+    .anticon {
+      font-size: 14px;
+      color: var(--primary-color, #3b82f6);
+    }
+
+    &:hover {
+      color: var(--primary-color, #3b82f6);
+
+      .anticon {
+        opacity: 0.8;
+      }
+    }
+  }
+
+  .app-footer-text {
+    cursor: default;
+
+    &:hover {
+      color: var(--text-secondary, #64748b);
+    }
+  }
+}
