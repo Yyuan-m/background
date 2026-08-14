@@ -1,9 +1,9 @@
 import { useState, useEffect, useCallback, useMemo, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Table, Button, Space, Tag, Input, DatePicker, Modal, Row, Col, Card, Tabs, Badge } from 'antd';
+import { Table, Button, Space, Tag, Input, DatePicker, Modal, Row, Col, Card, Tabs, Badge, Tooltip } from 'antd';
 import { message } from '@/utils/antdStatic';
-import { SearchOutlined, ReloadOutlined, EyeOutlined, EditOutlined, ExportOutlined } from '@ant-design/icons';
-import { getOrdersApi, updateOrderStatusApi } from '@/api/modules/order';
+import { SearchOutlined, ReloadOutlined, EyeOutlined, EditOutlined, ExportOutlined, QuestionCircleOutlined } from '@ant-design/icons';
+import { getOrdersApi, updateOrderStatusApi, getOrderStatusCountApi } from '@/api/modules/order';
 import DictSelect from '@/components/DictSelect';
 import { useDict } from '@/hooks/useDict';
 import useAuthStore from '@/store/useAuthStore';
@@ -31,11 +31,21 @@ const OrderList = () => {
   const [statusModalVisible, setStatusModalVisible] = useState(false);
   const [currentOrder, setCurrentOrder] = useState(null);
   const [newStatus, setNewStatus] = useState('');
+  // tab 角标全量统计：status → count（不受分页/筛选条件影响）
+  const [statusCount, setStatusCount] = useState({});
 
   const { options: statusOptions, map: statusMap } = useDict('order_status');
 
   // 用于追踪最新的请求，避免竞态条件导致旧响应覆盖新数据
   const fetchIdRef = useRef(0);
+
+  // 拉取各状态的全量订单数量（用于 tab 角标显示）
+  const fetchStatusCount = useCallback(async () => {
+    try {
+      const res = await getOrderStatusCountApi();
+      setStatusCount(res || {});
+    } catch (e) { console.error('获取订单状态统计失败:', e); }
+  }, []);
 
   const fetchData = useCallback(async () => {
     const fetchId = ++fetchIdRef.current;
@@ -57,6 +67,7 @@ const OrderList = () => {
   }, [page, pageSize, keyword, activeTab, filterStatus, dateRange]);
 
   useEffect(() => { void fetchData(); }, [fetchData]);
+  useEffect(() => { void fetchStatusCount(); }, [fetchStatusCount]);
 
   const handleSearch = () => { setPage(1); void fetchData(); };
   const handleReset = () => { setKeyword(''); setFilterStatus(''); setDateRange([]); setActiveTab('all'); setPage(1); };
@@ -66,7 +77,7 @@ const OrderList = () => {
 
   const handleStatusChange = async () => {
     if (!currentOrder || newStatus === currentOrder.status) { setStatusModalVisible(false); return; }
-    await updateOrderStatusApi(currentOrder.id, newStatus); message.success('状态修改成功'); setStatusModalVisible(false); void fetchData();
+    await updateOrderStatusApi(currentOrder.id, newStatus); message.success('状态修改成功'); setStatusModalVisible(false); void fetchData(); void fetchStatusCount();
   };
 
   const handleExport = () => {
@@ -107,13 +118,22 @@ const OrderList = () => {
     },
   ], [navigate, statusMap, handleOpenStatusModal]);
 
-  const tabItems = useMemo(() => [
-    { key: 'all', label: '全部' },
-    { key: 'pending', label: <>待支付 <Badge count={data.filter((d) => d.status === 'pending').length} size="small" /></> },
-    { key: 'renting', label: <>租赁中 <Badge count={data.filter((d) => d.status === 'renting').length} size="small" /></> },
-    { key: 'completed', label: '已完成' },
-    { key: 'cancelled', label: '已取消' },
-  ], [data]);
+  const tabItems = useMemo(() => {
+    // tab 角标提示：用问号图标 Tooltip 解释角标含义
+    const badgeHint = (
+      <Tooltip title="角标数字为该状态下所有订单的总数，不受上方搜索条件影响">
+        <QuestionCircleOutlined style={{ marginLeft: 4, fontSize: 12, color: 'var(--text-tertiary, #999)', verticalAlign: 'middle' }} />
+      </Tooltip>
+    );
+    return [
+      { key: 'all', label: '全部' },
+      { key: 'pending', label: <>待支付 <Badge count={statusCount.pending || 0} size="small" offset={[2, -2]} />{badgeHint}</> },
+      { key: 'renting', label: <>租赁中 <Badge count={statusCount.renting || 0} size="small" offset={[2, -2]} />{badgeHint}</> },
+      { key: 'overdue', label: <>已逾期 <Badge count={statusCount.overdue || 0} size="small" color="red" offset={[2, -2]} />{badgeHint}</> },
+      { key: 'completed', label: '已完成' },
+      { key: 'cancelled', label: '已取消' },
+    ];
+  }, [statusCount]);
 
   return (
     <div className="page-container">

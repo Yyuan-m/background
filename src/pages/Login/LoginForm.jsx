@@ -62,7 +62,7 @@ const LoginForm = ({
   return (
     <div className="login-right-card-wrap">
     <div className="login-right-card" ref={cardRef}>
-      {/* 鼠标跟随光斑 */}
+      {/* 鼠标跟随光斑 - 作为表单的隐形聚光区 */}
       <div className="card-spotlight" aria-hidden="true" />
 
       {/* Logo */}

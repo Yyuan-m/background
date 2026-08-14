@@ -4,7 +4,7 @@ import { Layout, Menu, Spin } from 'antd';
 import {
   DashboardOutlined, CarOutlined, ShoppingCartOutlined, TeamOutlined,
   UserOutlined, DollarOutlined, SettingOutlined, GiftOutlined,
-  ToolOutlined, AuditOutlined,
+  ToolOutlined, AuditOutlined, ShopOutlined,
 } from '@ant-design/icons';
 import useAppStore from '@/store/useAppStore';
 import useAuthStore from '@/store/useAuthStore';
@@ -25,6 +25,7 @@ const iconMap = {
   ToolOutlined: <ToolOutlined />,
   SettingOutlined: <SettingOutlined />,
   AuditOutlined: <AuditOutlined />,
+  ShopOutlined: <ShopOutlined />,
 };
 
 // 递归查找路径的所有祖先 key

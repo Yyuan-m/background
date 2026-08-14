@@ -6,6 +6,9 @@ import { get, post, put, del } from '@/api/request';
 /** 获取订单列表 */
 export const getOrdersApi = (params) => get('/api/order/list', params);
 
+/** 按状态统计订单数量（全量，不受分页/筛选条件影响） */
+export const getOrderStatusCountApi = () => get('/api/order/status-count');
+
 /** 获取订单详情 */
 export const getOrderDetailApi = (id) => get(`/api/order/detail/${id}`);
 

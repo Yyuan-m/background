@@ -1,7 +1,7 @@
 import React, { useEffect, useState, useMemo } from 'react';
 import { Outlet, useLocation, useNavigate } from 'react-router-dom';
 import { Layout, Breadcrumb, Tabs, Modal, Dropdown } from 'antd';
-import { HomeOutlined, CloseOutlined, EllipsisOutlined, CloseCircleOutlined, ArrowLeftOutlined, ArrowRightOutlined, ClearOutlined, DashboardOutlined, CarOutlined, ShoppingCartOutlined, TeamOutlined, UserOutlined, DollarOutlined, SettingOutlined, GiftOutlined, ToolOutlined, AuditOutlined, PhoneOutlined, MailOutlined, EnvironmentOutlined } from '@ant-design/icons';
+import { HomeOutlined, CloseOutlined, EllipsisOutlined, CloseCircleOutlined, ArrowLeftOutlined, ArrowRightOutlined, ClearOutlined, DashboardOutlined, CarOutlined, ShoppingCartOutlined, TeamOutlined, DollarOutlined, SettingOutlined, GiftOutlined, ToolOutlined, AuditOutlined, PhoneOutlined, MailOutlined, EnvironmentOutlined, ShopOutlined } from '@ant-design/icons';
 import Sidebar from '@/layout/Sidebar';
 import Header from '@/layout/Header';
 import ThemeConfig from '@/components/ThemeConfig/ThemeConfig';
@@ -27,7 +27,6 @@ const breadcrumbMap = {
   '/vehicles': t('breadcrumb.vehicles'),
   '/orders': t('breadcrumb.orders'),
   '/customers': t('breadcrumb.customers'),
-  '/admins': t('breadcrumb.admins'),
   '/finance': t('breadcrumb.finance'),
   '/marketing': t('breadcrumb.marketing'),
   '/after-sales': t('breadcrumb.afterSales'),
@@ -42,6 +41,7 @@ const breadcrumbMap = {
   '/settings/menus': t('breadcrumb.menus'),
   '/settings/files': '文件管理',
   '/settings/logs': t('breadcrumb.logs'),
+  '/settings/store': '门店配置',
 };
 
 const dynamicDetailMap = {
@@ -58,11 +58,11 @@ const routeIconMap = [
   { path: '/vehicles', icon: <CarOutlined /> },
   { path: '/orders', icon: <ShoppingCartOutlined /> },
   { path: '/customers', icon: <TeamOutlined /> },
-  { path: '/admins', icon: <UserOutlined /> },
   { path: '/finance', icon: <DollarOutlined /> },
   { path: '/marketing', icon: <GiftOutlined /> },
   { path: '/after-sales', icon: <ToolOutlined /> },
   { path: '/settings/logs', icon: <AuditOutlined /> },
+  { path: '/settings/store', icon: <ShopOutlined /> },
   { path: '/settings', icon: <SettingOutlined /> },
 ];
 

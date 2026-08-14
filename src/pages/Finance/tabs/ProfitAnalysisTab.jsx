@@ -10,6 +10,22 @@ const COLOR_PROFIT = '#1a365d';
 
 const fmt = (v) => `¥${Number(v).toLocaleString()}`;
 
+// Y 轴金额自适应格式化：>= 1万 显示为 "x.xx万"，否则显示原值
+const formatYAxisMoney = (v) => {
+  const n = Number(v) || 0;
+  const abs = Math.abs(n);
+  if (abs >= 10000) {
+    return `¥${(n / 10000).toFixed(2)}万`;
+  }
+  return `¥${n.toLocaleString()}`;
+};
+
+// X 轴日期格式化：补 "日" 后缀
+const formatDay = (v) => `${v}日`;
+
+// 自定义 Tooltip：保留两位小数 + 千分位
+const moneyTooltipFormatter = (value, name) => [fmt(Number(value).toFixed(2)), name];
+
 const ProfitAnalysisTab = () => {
   const [loading, setLoading] = useState(true);
   const [mode, setMode] = useState('trend'); // 默认趋势模式，展示近6月图表，避免空旷
@@ -222,12 +238,26 @@ const ProfitAnalysisTab = () => {
             {mode === 'month' && (
               <>
                 <Card title="每日收支" variant="borderless" style={{ marginBottom: 16 }}>
-                  <ResponsiveContainer width="100%" height={320}>
-                    <BarChart data={dailyData}>
+                  <ResponsiveContainer width="100%" height={340}>
+                    <BarChart data={dailyData} margin={{ top: 16, right: 24, left: 8, bottom: 24 }}>
                       <CartesianGrid strokeDasharray="3 3" stroke="var(--chart-grid, #f0f0f0)" />
-                      <XAxis dataKey="day" tick={{ fontSize: 12 }} />
-                      <YAxis tick={{ fontSize: 12 }} />
-                      <Tooltip formatter={fmt} />
+                      <XAxis
+                        dataKey="day"
+                        tickFormatter={formatDay}
+                        tick={{ fontSize: 11 }}
+                        angle={-40}
+                        textAnchor="end"
+                        height={56}
+                        interval="preserveStartEnd"
+                        label={{ value: '日期', position: 'insideBottom', offset: -14, fontSize: 12, fill: 'var(--text-secondary, #64748b)' }}
+                      />
+                      <YAxis
+                        tickFormatter={formatYAxisMoney}
+                        tick={{ fontSize: 11 }}
+                        width={72}
+                        label={{ value: '金额 (元)', angle: -90, position: 'insideLeft', offset: 4, fontSize: 12, fill: 'var(--text-secondary, #64748b)' }}
+                      />
+                      <Tooltip formatter={moneyTooltipFormatter} labelFormatter={formatDay} />
                       <Legend />
                       <Bar dataKey="revenue" name="收入" fill={COLOR_REVENUE} radius={[4, 4, 0, 0]} />
                       <Bar dataKey="cost" name="支出" fill={COLOR_COST} radius={[4, 4, 0, 0]} />

@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback, useMemo } from 'react';
 import { Row, Col, Card, Table, Tag, Spin, Tabs, Select, Space } from 'antd';
-import { DollarOutlined, RiseOutlined, FallOutlined, PieChartOutlined } from '@ant-design/icons';
+import { DollarOutlined, RiseOutlined, FallOutlined, PieChartOutlined, GiftOutlined } from '@ant-design/icons';
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer, PieChart, Pie, Cell } from 'recharts';
 import StatCard from '@/components/StatCard';
 import DictSelect from '@/components/DictSelect';
@@ -38,14 +38,13 @@ const FinanceOverview = () => {
   const fetchData = useCallback(async () => {
     setLoading(true);
     try {
-      const [overviewRes, trendRes, costRes] = await Promise.all([
+      // costComposition 由独立的 fetchCostComposition(costPeriod) 负责加载，避免重复请求与竞态
+      const [overviewRes, trendRes] = await Promise.all([
         getFinanceOverviewApi(),
         getProfitTrendApi(6),
-        getCostCompositionApi('total'),
       ]);
       setStats(overviewRes || {});
       setProfitTrend(trendRes || []);
-      setCostComposition(costRes || []);
     } catch (e) { console.error(e); } finally { setLoading(false); }
   }, []);
 
@@ -94,14 +93,16 @@ const FinanceOverview = () => {
     { key: 'overview', label: '营收总览', children: (
       <Spin spinning={loading}>
         <Row gutter={[16, 16]}>
-          <Col xs={24} sm={12} lg={8}><StatCard icon={<RiseOutlined />} title="总营收" value={stats?.totalRevenue || 0} prefix="¥" color="#10b981" /></Col>
-          <Col xs={24} sm={12} lg={8}><StatCard icon={<FallOutlined />} title="总成本" value={stats?.totalCost || 0} prefix="¥" color="#ef4444" /></Col>
-          <Col xs={24} sm={12} lg={8}><StatCard icon={<DollarOutlined />} title="净利润" value={stats?.totalProfit || 0} prefix="¥" color="#1a365d" /></Col>
+          <Col xs={24} sm={12} lg={6}><StatCard icon={<RiseOutlined />} title="总营收" value={stats?.totalRevenue || 0} prefix="¥" color="#10b981" /></Col>
+          <Col xs={24} sm={12} lg={6}><StatCard icon={<GiftOutlined />} title="优惠券优惠" value={stats?.totalCouponDiscount || 0} prefix="¥" color="#fa8c16" /></Col>
+          <Col xs={24} sm={12} lg={6}><StatCard icon={<FallOutlined />} title="总成本" value={stats?.totalCost || 0} prefix="¥" color="#ef4444" /></Col>
+          <Col xs={24} sm={12} lg={6}><StatCard icon={<DollarOutlined />} title="净利润" value={stats?.totalProfit || 0} prefix="¥" color="#1a365d" /></Col>
         </Row>
         <Row gutter={[16, 16]} style={{ marginTop: 16 }}>
-          <Col xs={24} sm={8}><Card size="small" variant="borderless"><div style={{ fontSize: 13, color: 'var(--text-secondary, #64748b)' }}>本月营收</div><div style={{ fontSize: 20, fontWeight: 600, color: '#10b981' }}>¥{Number(stats?.monthRevenue || 0).toLocaleString()}</div></Card></Col>
-          <Col xs={24} sm={8}><Card size="small" variant="borderless"><div style={{ fontSize: 13, color: 'var(--text-secondary, #64748b)' }}>本月成本</div><div style={{ fontSize: 20, fontWeight: 600, color: '#ef4444' }}>¥{Number(stats?.monthCost || 0).toLocaleString()}</div></Card></Col>
-          <Col xs={24} sm={8}><Card size="small" variant="borderless"><div style={{ fontSize: 13, color: 'var(--text-secondary, #64748b)' }}>本月净利润</div><div style={{ fontSize: 20, fontWeight: 600, color: Number(stats?.monthProfit || 0) >= 0 ? '#1a365d' : '#ef4444' }}>¥{Number(stats?.monthProfit || 0).toLocaleString()}</div></Card></Col>
+          <Col xs={24} sm={6}><Card size="small" variant="borderless"><div style={{ fontSize: 13, color: 'var(--text-secondary, #64748b)' }}>本月营收</div><div style={{ fontSize: 20, fontWeight: 600, color: '#10b981' }}>¥{Number(stats?.monthRevenue || 0).toLocaleString()}</div></Card></Col>
+          <Col xs={24} sm={6}><Card size="small" variant="borderless"><div style={{ fontSize: 13, color: 'var(--text-secondary, #64748b)' }}>本月优惠</div><div style={{ fontSize: 20, fontWeight: 600, color: '#fa8c16' }}>¥{Number(stats?.monthCouponDiscount || 0).toLocaleString()}</div></Card></Col>
+          <Col xs={24} sm={6}><Card size="small" variant="borderless"><div style={{ fontSize: 13, color: 'var(--text-secondary, #64748b)' }}>本月成本</div><div style={{ fontSize: 20, fontWeight: 600, color: '#ef4444' }}>¥{Number(stats?.monthCost || 0).toLocaleString()}</div></Card></Col>
+          <Col xs={24} sm={6}><Card size="small" variant="borderless"><div style={{ fontSize: 13, color: 'var(--text-secondary, #64748b)' }}>本月净利润</div><div style={{ fontSize: 20, fontWeight: 600, color: Number(stats?.monthProfit || 0) >= 0 ? '#1a365d' : '#ef4444' }}>¥{Number(stats?.monthProfit || 0).toLocaleString()}</div></Card></Col>
         </Row>
         <Row gutter={[16, 16]} style={{ marginTop: 16 }}>
           <Col xs={24} lg={12}>
@@ -126,7 +127,8 @@ const FinanceOverview = () => {
                 options={[{ value: 'total', label: '全部' }, { value: 'month', label: '本月' }, { value: 'year', label: '本年' }]} />
             }>
               <ResponsiveContainer width="100%" height={300}>
-                <PieChart>
+                {/* key 绑定数据长度，数据从空→有数据时强制重建组件，规避 recharts 不响应数据变化的渲染问题 */}
+                <PieChart key={costComposition?.length || 0}>
                   <Pie data={costComposition || []} dataKey="value" nameKey="name" cx="50%" cy="50%" outerRadius={90} label={(e) => `${e.name}: ¥${Number(e.value || 0).toLocaleString()}`}>
                     {(costComposition || []).map((entry) => <Cell key={entry.name} fill={entry.color} />)}
                   </Pie>
@@ -139,7 +141,7 @@ const FinanceOverview = () => {
         </Row>
         <Card title="资金流水" variant="borderless" style={{ marginTop: 16 }} extra={
           <Space>
-            <Select size="small" value={filterDirection || undefined} onChange={(v) => { setFilterDirection(v || ''); setPage(1); }} allowClear placeholder="方向" style={{ width: 100 }}
+            <Select value={filterDirection || undefined} onChange={(v) => { setFilterDirection(v || ''); setPage(1); }} allowClear placeholder="方向" style={{ width: 100 }}
               options={[{ value: 'inflow', label: '流入' }, { value: 'outflow', label: '流出' }]} />
             <DictSelect dictType="finance_type" placeholder="类型" value={filterType || undefined} onChange={(v) => { setFilterType(v); setPage(1); }} allowClear style={{ width: 140 }} />
           </Space>

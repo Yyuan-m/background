@@ -11,7 +11,8 @@ import {
   PieChart, Pie, Cell, BarChart, Bar,
 } from 'recharts';
 import StatCard from '@/components/StatCard';
-import HomeCarousel from '@/components/HomeCarousel';
+// 轮播图已从仪表盘移除，改为仅在系统设置中配置，供 C 端官网首页使用
+// import HomeCarousel from '@/components/HomeCarousel';
 import { getDashboardStatsApi, getOrderTrendApi, getRevenueDataApi, getVehicleTypeDataApi,
   getVehicleHotDataApi, getRepurchaseDataApi, getPeakHoursDataApi } from '@/api/modules/finance';
 import { getOrdersApi } from '@/api/modules/order';
@@ -94,11 +95,11 @@ const Dashboard = () => {
   return (
     <div className="page-container dashboard-page">
       <Spin spinning={loading}>
-        {/* 首页轮播图 */}
-        <HomeCarousel />
+        {/* 轮播图已从仪表盘移除，仅供 C 端官网首页使用 */}
+        {/* <HomeCarousel /> */}
 
         {/* 业务预警 */}
-        <Row gutter={[16, 16]} style={{ marginBottom: 16 }}>
+        <Row gutter={[16, 16]}>
           {(stats?.overdueOrders > 0) && (
             <Col xs={24} sm={12} lg={6}>
               <Alert message={`${stats.overdueOrders} 个逾期订单待处理`} type="error" showIcon icon={<WarningOutlined />} banner />

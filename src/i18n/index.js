@@ -115,8 +115,6 @@ const zhCN = {
     userList: '用户列表',
     roleList: '角色列表',
     menuList: '菜单列表',
-    adminList: '管理员列表',
-    adminPermission: '管理员权限',
     // 公告
     announcementTitle: '公告标题',
     // 轮播图
@@ -167,7 +165,6 @@ const zhCN = {
     menus: '菜单管理',
     settings: '系统设置',
     profile: '个人中心',
-    admin: '管理员权限',
   },
   // ---------- 登录 ----------
   login: {
@@ -225,7 +222,6 @@ const zhCN = {
     users: '用户管理',
     roles: '角色管理',
     menus: '菜单管理',
-    admin: '管理员权限管理',
     profile: '个人中心',
   },
   // ---------- 面包屑 ----------
@@ -234,7 +230,6 @@ const zhCN = {
     vehicles: '车辆管理',
     orders: '订单管理',
     customers: '租客管理',
-    admins: '管理员权限',
     finance: '财务统计',
     marketing: '营销活动',
     afterSales: '售后工单',

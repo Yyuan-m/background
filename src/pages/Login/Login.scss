@@ -312,26 +312,17 @@
 .login-right-card {
   width: 420px;
   padding: 48px 40px;
-  border-radius: 20px;
-  background: color-mix(in srgb, var(--login-card-bg) 90%, transparent);
-  box-shadow: var(--login-card-shadow, 0 20px 60px rgba(0, 0, 0, 0.4));
-  border: 1px solid color-mix(in srgb, var(--accent-color, #c9a96e) 15%, transparent);
   position: relative;
   z-index: 1;
   will-change: transform;
   // 3D 倾斜交互
   transform: perspective(1000px) rotateX(var(--rx, 0deg)) rotateY(var(--ry, 0deg));
   transform-style: preserve-3d;
-  transition: transform 0.25s ease, box-shadow 0.3s ease;
+  transition: transform 0.25s ease;
   // 默认光斑不可见，鼠标进入后显现
   --spot-opacity: 0;
-  overflow: hidden;
 
-  &:hover {
-    box-shadow: 0 28px 70px color-mix(in srgb, var(--accent-color, #c9a96e) 18%, rgba(0, 0, 0, 0.45));
-  }
-
-  // 鼠标跟随光斑
+  // 鼠标跟随光斑 - 隐形聚光区，无背景时靠光斑形成视觉重心
   .card-spotlight {
     position: absolute;
     inset: 0;
@@ -339,9 +330,10 @@
     opacity: var(--spot-opacity, 0);
     transition: opacity 0.3s ease;
     background: radial-gradient(
-      340px circle at var(--mx, 50%) var(--my, 50%),
-      color-mix(in srgb, var(--accent-color, #c9a96e) 14%, transparent) 0%,
-      transparent 60%
+      400px circle at var(--mx, 50%) var(--my, 50%),
+      color-mix(in srgb, var(--accent-color, #c9a96e) 22%, transparent) 0%,
+      color-mix(in srgb, var(--accent-color, #c9a96e) 8%, transparent) 35%,
+      transparent 70%
     );
     z-index: 0;
   }
@@ -373,9 +365,18 @@
 
   .login-form-title {
     text-align: center;
-    font-size: 24px;
-    font-weight: 600;
-    color: var(--text-primary, #0f172a);
+    font-size: 26px;
+    font-weight: 700;
+    // 渐变文字 - 表单视觉重心
+    background: linear-gradient(
+      135deg,
+      var(--primary-color, #3b82f6) 0%,
+      var(--accent-color, #c9a96e) 100%
+    );
+    -webkit-background-clip: text;
+    background-clip: text;
+    -webkit-text-fill-color: transparent;
+    color: transparent;
     margin: 0 0 32px;
     letter-spacing: 0.05em;
     opacity: 0;
@@ -394,12 +395,15 @@
     z-index: 1;
   }
 
-  // 输入框样式
+  // 输入框样式 - 半透明深底，无容器时仍清晰可辨
   .login-input {
     height: 48px;
     border-radius: 12px;
-    border: 1.5px solid var(--border-color, #e2e8f0);
-    background: var(--bg-input, #ffffff);
+    border: 1.5px solid color-mix(in srgb, var(--accent-color, #c9a96e) 22%, transparent);
+    // 半透明深色底 - 与右侧氛围融合但有对比
+    background: color-mix(in srgb, var(--login-card-bg) 55%, transparent);
+    backdrop-filter: blur(8px);
+    -webkit-backdrop-filter: blur(8px);
     transition: all 0.3s ease;
 
     &:focus-within {
@@ -409,12 +413,15 @@
     }
 
     .input-prefix-icon {
-      color: var(--text-muted, #94a3b8);
+      // 图标默认就用主色，确保清晰可见
+      color: var(--primary-color, #3b82f6);
       margin-right: 12px;
+      font-size: 16px;
       transition: color 0.3s ease;
     }
 
-    &:focus .input-prefix-icon {
+    &:focus .input-prefix-icon,
+    &:focus-within .input-prefix-icon {
       color: var(--accent-color, #c9a96e);
     }
 
@@ -432,6 +439,38 @@
     display: flex;
     justify-content: space-between;
     align-items: center;
+
+    // 重复 class 提升 specificity 压过 antd v5 CSS-in-JS
+    // 文字用 accent 金色，在右侧深色氛围上清晰可见
+    .ant-checkbox-wrapper.ant-checkbox-wrapper {
+      color: var(--accent-color, #c9a96e) !important;
+      font-size: 14px;
+      font-weight: 600;
+
+      > span:not(.ant-checkbox):not(.ant-checkbox-input) {
+        color: var(--accent-color, #c9a96e) !important;
+        font-weight: 600 !important;
+        opacity: 1 !important;
+      }
+    }
+
+    // checkbox 框 - 未选中态用 accent 边框
+    .ant-checkbox .ant-checkbox-inner {
+      border-color: var(--accent-color, #c9a96e) !important;
+      background: transparent !important;
+    }
+
+    // checkbox 框 - 选中态用 accent 实色填充
+    .ant-checkbox-checked .ant-checkbox-inner {
+      background-color: var(--accent-color, #c9a96e) !important;
+      border-color: var(--accent-color, #c9a96e) !important;
+    }
+
+    // checkbox hover 态
+    .ant-checkbox:hover .ant-checkbox-inner,
+    .ant-checkbox-input:focus + .ant-checkbox-inner {
+      border-color: var(--accent-color, #c9a96e) !important;
+    }
   }
 
   .login-forgot-link {

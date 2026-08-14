@@ -7,7 +7,7 @@ import DictSelect from '@/components/DictSelect';
 import { useDict } from '@/hooks/useDict';
 import useAuthStore from '@/store/useAuthStore';
 import { t } from '@/i18n';
-import { imageUrl } from '@/utils/imageUrl';
+import { customerImageUrl } from '@/utils/imageUrl';
 
 // 会员等级颜色映射（字典不存颜色，本地维护）
 const memberLevelColorMap = { normal: 'default', silver: 'blue', gold: 'gold', diamond: 'blue', black: 'black' };
@@ -141,10 +141,10 @@ const CustomerList = () => {
     return <Tag color={cfg.color}>{cfg.text}</Tag>;
   };
 
-  // 渲染图片项（小图，可预览）
+  // 渲染图片项（小图，可预览）—— 客户证件照来自 8089 服务，使用 customerImageUrl
   const renderImage = (url) => {
     if (!url) return '-';
-    return <Image src={imageUrl(url)} width={60} height={40} style={{ objectFit: 'cover', borderRadius: 4 }} />;
+    return <Image src={customerImageUrl(url)} width={60} height={40} style={{ objectFit: 'cover', borderRadius: 4 }} />;
   };
 
   return (
@@ -212,7 +212,7 @@ const CustomerList = () => {
                 <Descriptions.Item label="邮箱">{detailCustomer.email || '-'}</Descriptions.Item>
                 <Descriptions.Item label="性别">{genderMap[detailCustomer.gender] ?? '未知'}</Descriptions.Item>
                 <Descriptions.Item label="生日">{detailCustomer.birthday || '-'}</Descriptions.Item>
-                <Descriptions.Item label="头像">{detailCustomer.avatar ? <Image src={imageUrl(detailCustomer.avatar)} width={50} height={50} style={{ objectFit: 'cover', borderRadius: 4 }} /> : '-'}</Descriptions.Item>
+                <Descriptions.Item label="头像">{detailCustomer.avatar ? <Image src={customerImageUrl(detailCustomer.avatar)} width={50} height={50} style={{ objectFit: 'cover', borderRadius: 4 }} /> : '-'}</Descriptions.Item>
               </Descriptions>
 
               <Descriptions title="账户信息" bordered column={2} size="small" style={{ marginBottom: 16 }}>

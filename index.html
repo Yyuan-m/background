@@ -20,10 +20,16 @@
         //   生产环境: 'http://your-server:8080/api'（直接请求后端地址）
         apiBaseUrl: '',
 
-        // 后端静态资源（图片/文件）基础地址
+        // 后端静态资源（图片/文件）基础地址 —— 后台服务（8088）
         //   开发环境留空（靠 vite.config.js 中的 /uploads 代理）
         //   生产环境填后端 origin，如 'http://your-server:8088'
         assetBaseUrl: '',
+
+        // 客户端服务（8089）静态资源基础地址
+        //   用于展示客户头像、客户评价图片等由 8089 服务上传的资源
+        //   开发环境配置为客户端服务完整地址（直连，CORS 已开启）
+        //   生产环境同样填客户端服务 origin，如 'http://your-server:8089'
+        customerAssetBaseUrl: 'http://192.168.5.8:8089',
 
         // 应用名称（显示在浏览器标题栏）
         appName: 'LUXURY CAR',

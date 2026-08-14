@@ -47,5 +47,9 @@ export const listCouponCarsApi = (id) =>
 export const listReceiveRecordsApi = (id) =>
   get(`/api/coupon/${id}/receive-records`);
 
+/** 关联订单（含统计汇总：totalOrders, completedOrders, totalDiscount） */
+export const listUsedOrdersApi = (id) =>
+  get(`/api/coupon/${id}/used-orders`);
+
 // 别名
 export const getCouponsApi = getCouponListApi;

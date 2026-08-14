@@ -31,12 +31,12 @@ export default defineConfig(({ mode }) => {
       // 切换后端时，修改下方 target 的 IP 和端口即可
       proxy: {
         '/api': {
-          target: 'http://192.168.5.185:8088',
+          target: 'http://192.168.5.8:8088',
           changeOrigin: true,
         },
         // 后端静态资源（上传的图片/文件）由 /uploads/** 提供
         '/uploads': {
-          target: 'http://192.168.5.185:8088',
+          target: 'http://192.168.5.8:8088',
           changeOrigin: true,
         },
       },

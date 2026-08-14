@@ -2,12 +2,13 @@ import { useState, useEffect, useMemo, useCallback, useRef } from 'react';
 import {
   Card, Table, Tag, Button, Row, Col, Statistic,
   Modal, Form, Input, InputNumber, DatePicker, Popconfirm,
-  Select, Radio, Space, Tooltip, message,
+  Select, Radio, Space, Tooltip, Spin, Switch, message,
 } from 'antd';
 import {
   PlusOutlined, GiftOutlined, CalendarOutlined,
   DeleteOutlined, EditOutlined, SendOutlined, DownCircleOutlined,
   CarOutlined, UnorderedListOutlined, ExclamationCircleOutlined,
+  ProfileOutlined,
 } from '@ant-design/icons';
 import dayjs from 'dayjs';
 import { formatTime } from '@/utils/formatTime';
@@ -15,6 +16,7 @@ import { t } from '@/i18n';
 import {
   getCouponListApi, getCouponDetailApi, addCouponApi, updateCouponApi,
   deleteCouponApi, publishCouponApi, offlineCouponApi, listReceiveRecordsApi,
+  listUsedOrdersApi,
 } from '@/api/modules/coupon';
 import { getVehiclesApi } from '@/api/modules/vehicle';
 import DictSelect from '@/components/DictSelect';
@@ -23,8 +25,32 @@ import { useDict } from '@/hooks/useDict';
 const { RangePicker } = DatePicker;
 
 const couponTypeColorMap = { discount: 'blue', deduction: 'green', duration: 'orange' };
-const couponStatusColorMap = { draft: 'default', published: 'green', offline: 'orange' };
-const couponStatusTextMap = { draft: '草稿', published: '已投放', offline: '已下线' };
+// 券状态：草稿(运营未投放) / 待生效(已投放未到生效时间) / 已投放(正常可用) / 已领完(库存售罄) / 已过期(超过有效期) / 已下线(运营主动下线)
+const couponStatusColorMap = {
+  draft: 'default',
+  pending: 'processing',
+  published: 'success',
+  sold_out: 'warning',
+  expired: 'error',
+  offline: 'orange',
+};
+const couponStatusTextMap = {
+  draft: '草稿',
+  pending: '待生效',
+  published: '已投放',
+  sold_out: '已领完',
+  expired: '已过期',
+  offline: '已下线',
+};
+// 券状态筛选项
+const couponStatusOptions = [
+  { label: '草稿', value: 'draft' },
+  { label: '待生效', value: 'pending' },
+  { label: '已投放', value: 'published' },
+  { label: '已领完', value: 'sold_out' },
+  { label: '已过期', value: 'expired' },
+  { label: '已下线', value: 'offline' },
+];
 const memberCouponStatusTextMap = { unused: '未使用', locked: '已锁定', used: '已使用', expired: '已过期' };
 const memberCouponStatusColorMap = { unused: 'blue', locked: 'orange', used: 'green', expired: 'default' };
 
@@ -59,7 +85,7 @@ const Marketing = () => {
   const [couponSaving, setCouponSaving] = useState(false);
   const [couponPagination, setCouponPagination] = useState({ page: 1, pageSize: 10 });
   const [couponTotal, setCouponTotal] = useState(0);
-  const [couponFilters, setCouponFilters] = useState({ name: '', type: '', status: '', published: undefined });
+  const [couponFilters, setCouponFilters] = useState({ name: '', type: '', status: '', stackable: undefined });
 
   // 关联车辆可选列表
   const [vehicleOptions, setVehicleOptions] = useState([]);
@@ -69,6 +95,11 @@ const Marketing = () => {
   const [receiveLoading, setReceiveLoading] = useState(false);
   const [receiveRecords, setReceiveRecords] = useState([]);
   const [receiveCouponName, setReceiveCouponName] = useState('');
+  // 关联订单弹窗
+  const [usedOrdersModalVisible, setUsedOrdersModalVisible] = useState(false);
+  const [usedOrdersLoading, setUsedOrdersLoading] = useState(false);
+  const [usedOrdersData, setUsedOrdersData] = useState({ orders: [], totalOrders: 0, completedOrders: 0, totalDiscount: 0 });
+  const [usedOrdersCouponName, setUsedOrdersCouponName] = useState('');
 
   // ---------- 字典 ----------
   const { map: couponTypeMap } = useDict('coupon_type');
@@ -89,7 +120,7 @@ const Marketing = () => {
         name: couponFilters.name || undefined,
         type: couponFilters.type || undefined,
         status: couponFilters.status || undefined,
-        published: couponFilters.published,
+        stackable: couponFilters.stackable,
       });
       setCouponData(res?.list || []);
       setCouponTotal(res?.total || 0);
@@ -216,6 +247,12 @@ const Marketing = () => {
       },
     },
     {
+      title: '可叠加', dataIndex: 'stackable', key: 'stackable', width: 80, align: 'center',
+      render: (v) => v === 1
+        ? <Tag color="success">可叠加</Tag>
+        : <Tag>不可叠加</Tag>,
+    },
+    {
       title: '状态', key: 'status', width: 100,
       render: (_, r) => {
         const color = couponStatusColorMap[r.status] || 'default';
@@ -225,9 +262,11 @@ const Marketing = () => {
       },
     },
     {
-      title: '操作', key: 'action', width: 220, fixed: 'right',
+      title: '操作', key: 'action', width: 280, fixed: 'right',
       render: (_, record) => {
-        const isPublished = record.status === 'published';
+        // isPublishedLike: 处于运营投放态（含派生状态 published/pending/sold_out/expired），
+        //   均对应数据库 status=published，需先下线才能编辑/删除
+        const isPublishedLike = ['published', 'pending', 'sold_out', 'expired'].includes(record.status);
         const isDraftOrOffline = record.status === 'draft' || record.status === 'offline';
         return (
           <Space size={0} wrap>
@@ -245,7 +284,7 @@ const Marketing = () => {
                 <Button type="link" size="small" icon={<SendOutlined />} style={{ color: '#52c41a' }}>投放</Button>
               </Popconfirm>
             )}
-            {isPublished && (
+            {isPublishedLike && (
               <Popconfirm
                 title="确认下线该优惠券？"
                 description="下线后C端不可再领取，已领取的券不受影响。"
@@ -257,16 +296,17 @@ const Marketing = () => {
               </Popconfirm>
             )}
             <Button type="link" size="small" icon={<UnorderedListOutlined />} onClick={() => handleOpenReceiveModal(record)}>领取</Button>
+            <Button type="link" size="small" icon={<ProfileOutlined />} onClick={() => handleOpenUsedOrdersModal(record)}>关联订单</Button>
             <Popconfirm
               title="确定删除该优惠券？"
-              description={isPublished ? '已投放的优惠券不可删除，请先下线' : '删除后不可恢复'}
+              description={isPublishedLike ? '已投放的优惠券不可删除，请先下线' : '删除后不可恢复'}
               okText="删除"
-              okButtonProps={{ danger: true, disabled: isPublished }}
+              okButtonProps={{ danger: true, disabled: isPublishedLike }}
               cancelText="取消"
-              disabled={isPublished}
+              disabled={isPublishedLike}
               onConfirm={() => handleDeleteCoupon(record.id)}
             >
-              <Button type="link" size="small" danger icon={<DeleteOutlined />} disabled={isPublished}>删除</Button>
+              <Button type="link" size="small" danger icon={<DeleteOutlined />} disabled={isPublishedLike}>删除</Button>
             </Popconfirm>
           </Space>
         );
@@ -300,6 +340,7 @@ const Marketing = () => {
         totalCount: detail.totalCount,
         perUserLimit: detail.perUserLimit,
         applyScope: detail.applyScope || 'all',
+        stackable: detail.stackable === 1,
         carIds: carIdList,
         validTimeRange: start && end ? [start, end] : undefined,
         remark: detail.remark,
@@ -310,6 +351,7 @@ const Marketing = () => {
       couponForm.setFieldsValue({
         type: 'deduction',
         applyScope: 'all',
+        stackable: false,
         totalCount: 100,
         perUserLimit: 1,
         minAmount: 0,
@@ -344,6 +386,7 @@ const Marketing = () => {
         totalCount: values.totalCount,
         perUserLimit: values.perUserLimit,
         applyScope: values.applyScope,
+        stackable: values.stackable ? 1 : 0,
         carIds,
         validStartTime: validStartTime.format('YYYY-MM-DD HH:mm:ss'),
         validEndTime: validEndTime.format('YYYY-MM-DD HH:mm:ss'),
@@ -409,14 +452,30 @@ const Marketing = () => {
     }
   };
 
+  // ---------- 关联订单 ----------
+  const handleOpenUsedOrdersModal = async (record) => {
+    setUsedOrdersCouponName(record.name);
+    setUsedOrdersModalVisible(true);
+    setUsedOrdersLoading(true);
+    try {
+      const res = await listUsedOrdersApi(record.id);
+      setUsedOrdersData(res || { orders: [], totalOrders: 0, completedOrders: 0, totalDiscount: 0 });
+    } catch (err) {
+      console.error('获取关联订单失败:', err);
+      setUsedOrdersData({ orders: [], totalOrders: 0, completedOrders: 0, totalDiscount: 0 });
+    } finally {
+      setUsedOrdersLoading(false);
+    }
+  };
+
   // ---------- 统计 ----------
   const publishedCoupons = couponData.filter((c) => c.status === 'published').length;
   const totalReceived = couponData.reduce((s, c) => s + (c.receivedCount ?? 0), 0);
   const totalUsed = couponData.reduce((s, c) => s + (c.usedCount ?? 0), 0);
   const verifyRate = totalReceived > 0 ? Math.round((totalUsed / totalReceived) * 100) : 0;
 
-  // 已投放的券不可编辑关键字段
-  const isPublishedCoupon = couponEditing?.status === 'published';
+  // 已投放的券不可编辑关键字段（含派生状态 pending/sold_out/expired，均对应数据库 status=published）
+  const isPublishedCoupon = couponEditing && ['published', 'pending', 'sold_out', 'expired'].includes(couponEditing.status);
 
   return (
     <div className="page-container">
@@ -481,27 +540,23 @@ const Marketing = () => {
           <Col xs={24} sm={8} md={5}>
             <Select
               allowClear
-              placeholder="投放状态"
+              placeholder="券状态"
               style={{ width: '100%' }}
               value={couponFilters.status || undefined}
               onChange={(v) => setCouponFilters((f) => ({ ...f, status: v || '' }))}
-              options={[
-                { label: '草稿', value: 'draft' },
-                { label: '已投放', value: 'published' },
-                { label: '已下线', value: 'offline' },
-              ]}
+              options={couponStatusOptions}
             />
           </Col>
           <Col xs={24} sm={8} md={5}>
             <Select
               allowClear
-              placeholder="确认投放标志"
+              placeholder="是否可叠加"
               style={{ width: '100%' }}
-              value={couponFilters.published}
-              onChange={(v) => setCouponFilters((f) => ({ ...f, published: v }))}
+              value={couponFilters.stackable}
+              onChange={(v) => setCouponFilters((f) => ({ ...f, stackable: v }))}
               options={[
-                { label: '已确认投放', value: 1 },
-                { label: '未确认投放', value: 0 },
+                { label: '可叠加', value: 1 },
+                { label: '不可叠加', value: 0 },
               ]}
             />
           </Col>
@@ -515,7 +570,7 @@ const Marketing = () => {
           dataSource={couponData}
           rowKey="id"
           loading={couponLoading}
-          scroll={{ x: 1300 }}
+          scroll={{ x: 1400 }}
           onChange={(p) => setCouponPagination({ page: p.current, pageSize: p.pageSize })}
           pagination={{
             current: couponPagination.page,
@@ -628,6 +683,20 @@ const Marketing = () => {
             </Col>
           </Row>
 
+          <Form.Item
+            name="stackable"
+            label="是否可叠加使用"
+            valuePropName="checked"
+            initialValue={false}
+            extra="开启后，用户下单时可与其他可叠加券叠加使用；关闭则一笔订单仅限使用一张券"
+          >
+            <Switch
+              checkedChildren="可叠加"
+              unCheckedChildren="不可叠加"
+              disabled={isPublishedCoupon}
+            />
+          </Form.Item>
+
           {currentScope === 'specified' && (
             <Form.Item
               name="carIds"
@@ -720,6 +789,87 @@ const Marketing = () => {
             },
           ]}
         />
+      </Modal>
+
+      {/* ========== 关联订单 Modal ========== */}
+      <Modal
+        title={`关联订单 - ${usedOrdersCouponName}`}
+        open={usedOrdersModalVisible}
+        onCancel={() => setUsedOrdersModalVisible(false)}
+        footer={<Button onClick={() => setUsedOrdersModalVisible(false)}>关闭</Button>}
+        width={960}
+        destroyOnClose
+      >
+        <Spin spinning={usedOrdersLoading}>
+          <Row gutter={16} style={{ marginBottom: 16 }}>
+            <Col span={8}>
+              <Card size="small" variant="borderless">
+                <Statistic title="关联订单总数" value={usedOrdersData.totalOrders || 0} suffix="笔" />
+              </Card>
+            </Col>
+            <Col span={8}>
+              <Card size="small" variant="borderless">
+                <Statistic title="已完成订单" value={usedOrdersData.completedOrders || 0} suffix="笔"
+                  valueStyle={{ color: '#52c41a' }} />
+              </Card>
+            </Col>
+            <Col span={8}>
+              <Card size="small" variant="borderless">
+                <Statistic title="累计优惠金额" value={usedOrdersData.totalDiscount || 0} prefix="¥"
+                  valueStyle={{ color: '#fa8c16' }} />
+              </Card>
+            </Col>
+          </Row>
+          <Table
+            size="small"
+            dataSource={usedOrdersData.orders || []}
+            rowKey="id"
+            pagination={{ pageSize: 10, showSizeChanger: false }}
+            scroll={{ x: 900 }}
+            columns={[
+              {
+                title: '订单号', dataIndex: 'orderNo', key: 'orderNo', width: 140, ellipsis: true,
+                render: (v) => <span style={{ fontFamily: 'monospace', fontSize: 12 }}>{v || '-'}</span>,
+              },
+              {
+                title: '车辆', dataIndex: 'carName', key: 'carName', width: 140, ellipsis: true,
+                render: (v) => v || '-',
+              },
+              {
+                title: '客户', dataIndex: 'contactName', key: 'contactName', width: 90,
+                render: (v) => v || '-',
+              },
+              {
+                title: '租金总额', dataIndex: 'rentAmount', key: 'rentAmount', width: 100, align: 'right',
+                render: (v) => v != null ? `¥${Number(v).toLocaleString()}` : '-',
+              },
+              {
+                title: '优惠金额', dataIndex: 'couponDiscount', key: 'couponDiscount', width: 100, align: 'right',
+                render: (v) => v != null
+                  ? <span style={{ color: '#fa8c16', fontWeight: 600 }}>-¥{Number(v).toLocaleString()}</span>
+                  : '-',
+              },
+              {
+                title: '实付金额', dataIndex: 'totalAmount', key: 'totalAmount', width: 100, align: 'right',
+                render: (v) => v != null
+                  ? <span style={{ color: '#10b981', fontWeight: 600 }}>¥{Number(v).toLocaleString()}</span>
+                  : '-',
+              },
+              {
+                title: '状态', dataIndex: 'status', key: 'status', width: 80, align: 'center',
+                render: (v) => {
+                  const map = { completed: ['green', '已完成'], cancelled: ['red', '已取消'], pending: ['blue', '待付款'], active: ['orange', '进行中'] };
+                  const [color, text] = map[v] || ['default', v];
+                  return <Tag color={color}>{text}</Tag>;
+                },
+              },
+              {
+                title: '下单时间', dataIndex: 'createTime', key: 'createTime', width: 140,
+                render: (v) => formatTime(v, 'YYYY-MM-DD HH:mm'),
+              },
+            ]}
+          />
+        </Spin>
       </Modal>
     </div>
   );
