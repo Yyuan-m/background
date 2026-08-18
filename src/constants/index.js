@@ -7,7 +7,7 @@
 
 // ==================== 应用信息 ====================
 export const APP_NAME = 'LUXURY CAR';
-export const APP_SUBTITLE = '豪华汽车租赁后台管理系统';
+export const APP_SUBTITLE = '大圣玩车后台管理系统';
 export const APP_VERSION = '0.2.0';
 
 // ==================== 分页默认值 ====================

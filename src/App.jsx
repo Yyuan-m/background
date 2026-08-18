@@ -16,7 +16,7 @@ const App = () => {
     // 动态设置浏览器标题
     document.title = appConfig.appName
       ? `${appConfig.appName} - ${appConfig.appSubtitle}`
-      : 'LUXURY CAR - 豪华汽车租赁后台管理系统';
+      : 'LUXURY CAR - 大圣玩车后台管理系统';
 
     // 根据配置设定日志级别
     if (appConfig.logLevel) {

@@ -24,5 +24,8 @@ export const deleteOrderApi = (id) => del(`/api/order/delete/${id}`);
 /** 更新订单状态 */
 export const updateOrderStatusApi = (id, status) => put(`/api/order/status/${id}`, null, { params: { status } });
 
+/** 手动触发：自动完成到期订单 + 回补缺失财务流水/发票 */
+export const maintainOrderFinanceApi = () => post('/api/order/finance/maintain');
+
 // 别名导出
 export const getOrderListApi = getOrdersApi;

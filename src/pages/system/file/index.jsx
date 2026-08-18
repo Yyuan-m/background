@@ -41,6 +41,7 @@ const BIZ_TYPE_META = {
   vehicle_image: { label: '车辆素材', color: 'gold' },
   vehicle_doc: { label: '车辆证件', color: 'cyan' },
   avatar: { label: '用户头像', color: 'magenta' },
+  carousel_image: { label: '轮播图配置', color: 'orange' },
   document: { label: '通用文档', color: 'blue' },
   attachment: { label: '附件',     color: 'geekblue' },
   other: { label: '其他',     color: 'default' },
@@ -264,15 +265,22 @@ const FileManagement = () => {
     if (isImage(record.extension)) {
       setPreviewUrl(record.url);
       setPreviewName(record.originalName);
+      setPreviewOpen(true);
     } else {
       window.open(imageUrl(record.url), '_blank');
     }
   };
 
-  // 复制链接
+  // 复制链接：确保复制的是完整可访问地址（协议+IP+端口+路径）
   const handleCopyUrl = (url) => {
+    let fullUrl = imageUrl(url);
+    // 开发环境下 assetBaseUrl 可能为空，导致 imageUrl 返回相对路径，
+    // 此时拼接当前页面 origin 兜底，保证复制出的是完整 URL
+    if (fullUrl && !/^(https?:)?\/\//i.test(fullUrl) && !/^data:/i.test(fullUrl)) {
+      fullUrl = window.location.origin + fullUrl;
+    }
     const textarea = document.createElement('textarea');
-    textarea.value = url;
+    textarea.value = fullUrl;
     textarea.style.position = 'fixed';
     textarea.style.opacity = '0';
     document.body.appendChild(textarea);

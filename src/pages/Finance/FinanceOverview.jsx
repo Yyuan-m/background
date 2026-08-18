@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback, useMemo } from 'react';
-import { Row, Col, Card, Table, Tag, Spin, Tabs, Select, Space } from 'antd';
-import { DollarOutlined, RiseOutlined, FallOutlined, PieChartOutlined, GiftOutlined } from '@ant-design/icons';
+import { Row, Col, Card, Table, Tag, Spin, Tabs, Select, Space, Button } from 'antd';
+import { DollarOutlined, RiseOutlined, FallOutlined, PieChartOutlined, GiftOutlined, SyncOutlined } from '@ant-design/icons';
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer, PieChart, Pie, Cell } from 'recharts';
 import StatCard from '@/components/StatCard';
 import DictSelect from '@/components/DictSelect';
@@ -8,6 +8,9 @@ import { useDict } from '@/hooks/useDict';
 import {
   getFinanceRecordsApi, getFinanceOverviewApi, getProfitTrendApi, getCostCompositionApi,
 } from '@/api/modules/finance';
+import { maintainOrderFinanceApi } from '@/api/modules/order';
+import useAuthStore from '@/store/useAuthStore';
+import { message } from '@/utils/antdStatic';
 import InvoiceTab from './tabs/InvoiceTab';
 import ReconciliationTab from './tabs/ReconciliationTab';
 import CostTab from './tabs/CostTab';
@@ -34,6 +37,8 @@ const FinanceOverview = () => {
   const [activeTab, setActiveTab] = useState('overview');
 
   const { map: financeTypeMap } = useDict('finance_type');
+  const { hasButtonPermission } = useAuthStore();
+  const [syncing, setSyncing] = useState(false);
 
   const fetchData = useCallback(async () => {
     setLoading(true);
@@ -66,6 +71,23 @@ const FinanceOverview = () => {
   useEffect(() => { void fetchData(); }, [fetchData]);
   useEffect(() => { void fetchRecords(); }, [fetchRecords]);
   useEffect(() => { void fetchCostComposition(costPeriod); }, [costPeriod, fetchCostComposition]);
+
+  // 手动触发：自动完成到期订单 + 回补缺失财务流水/发票
+  const handleSyncFinance = useCallback(async () => {
+    setSyncing(true);
+    try {
+      const res = await maintainOrderFinanceApi();
+      const autoCompleted = res?.autoCompleted || 0;
+      const backfilled = res?.backfilled || 0;
+      if (autoCompleted === 0 && backfilled === 0) {
+        message.success('数据已是最新，无需补全');
+      } else {
+        message.success(`同步完成：自动完成订单 ${autoCompleted} 单，回补流水 ${backfilled} 单`);
+        // 刷新总览与流水
+        void fetchData(); void fetchRecords();
+      }
+    } catch (e) { console.error(e); } finally { setSyncing(false); }
+  }, [fetchData, fetchRecords]);
 
   // 后端已按 direction 筛选，前端直接使用 records
   const filteredRecords = records;
@@ -144,6 +166,9 @@ const FinanceOverview = () => {
             <Select value={filterDirection || undefined} onChange={(v) => { setFilterDirection(v || ''); setPage(1); }} allowClear placeholder="方向" style={{ width: 100 }}
               options={[{ value: 'inflow', label: '流入' }, { value: 'outflow', label: '流出' }]} />
             <DictSelect dictType="finance_type" placeholder="类型" value={filterType || undefined} onChange={(v) => { setFilterType(v); setPage(1); }} allowClear style={{ width: 140 }} />
+            {hasButtonPermission('order', 'status') && (
+              <Button icon={<SyncOutlined spin={syncing} />} loading={syncing} onClick={handleSyncFinance}>同步流水</Button>
+            )}
           </Space>
         }>
           <div>
@@ -166,7 +191,7 @@ const FinanceOverview = () => {
     { key: 'reconciliation', label: '对账管理', children: <ReconciliationTab /> },
     { key: 'cost', label: '成本统计', children: <CostTab /> },
     { key: 'profit', label: <><PieChartOutlined /> 利润分析</>, children: <ProfitAnalysisTab /> },
-  ], [loading, stats, profitTrend, costComposition, costPeriod, filterType, filterDirection, page, recordTotal, filteredRecords, recordLoading, recordColumns]);
+  ], [loading, stats, profitTrend, costComposition, costPeriod, filterType, filterDirection, page, recordTotal, filteredRecords, recordLoading, recordColumns, syncing, handleSyncFinance, hasButtonPermission]);
 
   return (
     <div className="page-container">

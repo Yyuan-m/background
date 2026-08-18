@@ -331,6 +331,11 @@ const VehicleList = () => {
                 <InputNumber min={0} style={{ width: '100%' }} placeholder="自动计算" />
               </Form.Item>
             </Col>
+            <Col span={6}>
+              <Form.Item name="minRentDays" label="起租天数" initialValue={1} rules={[{ required: true, message: '请输入起租天数' }]}>
+                <InputNumber min={1} max={180} style={{ width: '100%' }} placeholder="1-180" />
+              </Form.Item>
+            </Col>
             <Col span={6}><Form.Item name="seats" label="座位数"><InputNumber min={1} max={20} style={{ width: '100%' }} /></Form.Item></Col>
           </Row>
           <Row gutter={16}>
@@ -428,6 +433,7 @@ const VehicleList = () => {
               <Descriptions.Item label="车辆类型">{detailVehicle.type}</Descriptions.Item>
               <Descriptions.Item label="日租价格">¥{detailVehicle.dailyPrice?.toLocaleString()}</Descriptions.Item>
               <Descriptions.Item label="日成本价">¥{detailVehicle.dailyCost?.toLocaleString()}</Descriptions.Item>
+              <Descriptions.Item label="起租天数">{detailVehicle.minRentDays ? `${detailVehicle.minRentDays} 天` : '-'}</Descriptions.Item>
               <Descriptions.Item label="半日租">¥{detailVehicle.halfDayPrice?.toLocaleString()}</Descriptions.Item>
               <Descriptions.Item label="夜租">¥{detailVehicle.nightPrice?.toLocaleString()}</Descriptions.Item>
               <Descriptions.Item label="周租折扣">{((detailVehicle.weeklyDiscount || 0) * 100).toFixed(0)}%</Descriptions.Item>

@@ -16,7 +16,7 @@ import { createContext, useContext, useMemo } from 'react';
 const DEFAULT_APP_CONFIG = {
   apiBaseUrl: '/api',
   appName: 'LUXURY CAR',
-  appSubtitle: '豪华汽车租赁后台管理系统',
+  appSubtitle: '大圣玩车后台管理系统',
   appVersion: '0.2.0',
   enableMock: false,
   enableLogger: true,

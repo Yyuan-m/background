@@ -1,7 +1,7 @@
 import React from 'react';
 
 const BRAND_NAME = 'LUXURY CAR';
-const BRAND_SLOGAN = '豪华汽车租赁管理系统';
+const BRAND_SLOGAN = '大圣玩车管理系统';
 const COPYRIGHT = '© 2025 Luxury Car Rental Management System';
 
 const LoginLeft = () => {

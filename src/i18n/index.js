@@ -78,7 +78,7 @@ const zhCN = {
     retry: '重试',
     backHome: '返回首页',
     reLogin: '重新登录',
-    welcome: '欢迎访问豪华汽车租赁后台管理系统',
+    welcome: '欢迎访问大圣玩车后台管理系统',
     websiteConfig: '网站配置',
     announcement: '公告管理',
     carousel: '轮播图配置',
@@ -180,7 +180,7 @@ const zhCN = {
     usernameRequired: '请输入用户名',
     passwordRequired: '请输入密码',
     brandName: 'LUXURY CAR',
-    brandSubtitle: '豪华汽车租赁',
+    brandSubtitle: '大圣玩车',
   },
   // ---------- 错误页面 ----------
   error: {
