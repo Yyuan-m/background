@@ -211,6 +211,9 @@ const VehicleList = () => {
     { title: '车牌号', dataIndex: 'plateNumber', key: 'plateNumber', width: 120 },
     { title: '日租(¥)', dataIndex: 'dailyPrice', key: 'dailyPrice', width: 100, render: (v) => <span style={{ color: 'var(--amount-color, #c9a96e)', fontWeight: 500 }}>¥{v?.toLocaleString()}</span> },
     { title: '日成本(¥)', dataIndex: 'dailyCost', key: 'dailyCost', width: 100, render: (v) => v != null ? <span style={{ color: 'var(--text-secondary, #64748b)' }}>¥{Number(v).toLocaleString()}</span> : '-' },
+    { title: '最大租期(天)', dataIndex: 'maxRentDays', key: 'maxRentDays', width: 100,
+      render: (v) => v != null && v > 0 ? <Tag color="cyan">{v} 天</Tag> : <span style={{ color: 'var(--text-tertiary, #bbb)' }}>不限制</span>,
+    },
     { title: '车况', dataIndex: 'conditionLevel', key: 'conditionLevel', width: 70, render: (v) => <Tag color={conditionLevelColors[v] || 'default'}>{v}</Tag> },
     {
       title: '状态', dataIndex: 'status', key: 'status', width: 90,
@@ -297,7 +300,7 @@ const VehicleList = () => {
       <Tabs activeKey={activeTab} onChange={setActiveTab} items={tabItems} style={{ background: 'transparent' }} />
 
       {/* 新增/编辑弹窗 */}
-      <Modal title={modalTitle} open={modalVisible} onOk={handleSubmit} onCancel={() => setModalVisible(false)} confirmLoading={submitLoading} width={720} destroyOnClose>
+      <Modal title={modalTitle} open={modalVisible} onOk={handleSubmit} onCancel={() => setModalVisible(false)} confirmLoading={submitLoading} width={'60%'} destroyOnClose>
         <Form form={form} layout="vertical" style={{ marginTop: 16 }}>
           <Row gutter={16}>
             <Col span={8}><Form.Item name="name" label="车辆名称" rules={[{ required: true }]}><Input placeholder="如：保时捷 911 Carrera" /></Form.Item></Col>
@@ -336,7 +339,11 @@ const VehicleList = () => {
                 <InputNumber min={1} max={180} style={{ width: '100%' }} placeholder="1-180" />
               </Form.Item>
             </Col>
-            <Col span={6}><Form.Item name="seats" label="座位数"><InputNumber min={1} max={20} style={{ width: '100%' }} /></Form.Item></Col>
+            <Col span={6}>
+              <Form.Item name="maxRentDays" label="最大租期(天)" tooltip="留空表示不限制租车天数">
+                <InputNumber min={1} max={36500} placeholder="不限制" style={{ width: '100%' }} />
+              </Form.Item>
+            </Col>
           </Row>
           <Row gutter={16}>
             <Col span={6}><Form.Item name="displacement" label="排量"><Input placeholder="如：3.0T" /></Form.Item></Col>
@@ -354,6 +361,7 @@ const VehicleList = () => {
                 <DictSelect dictType={VEHICLE_STATUS_DICT} placeholder="请选择" style={{ width: '100%' }} />
               </Form.Item>
             </Col>
+            <Col span={6}><Form.Item name="seats" label="座位数"><InputNumber min={1} max={20} style={{ width: '100%' }} /></Form.Item></Col>
           </Row>
           <Row gutter={16}>
             <Col span={24}>
@@ -434,6 +442,7 @@ const VehicleList = () => {
               <Descriptions.Item label="日租价格">¥{detailVehicle.dailyPrice?.toLocaleString()}</Descriptions.Item>
               <Descriptions.Item label="日成本价">¥{detailVehicle.dailyCost?.toLocaleString()}</Descriptions.Item>
               <Descriptions.Item label="起租天数">{detailVehicle.minRentDays ? `${detailVehicle.minRentDays} 天` : '-'}</Descriptions.Item>
+              <Descriptions.Item label="最大租期">{detailVehicle.maxRentDays ? `${detailVehicle.maxRentDays} 天` : '不限制'}</Descriptions.Item>
               <Descriptions.Item label="半日租">¥{detailVehicle.halfDayPrice?.toLocaleString()}</Descriptions.Item>
               <Descriptions.Item label="夜租">¥{detailVehicle.nightPrice?.toLocaleString()}</Descriptions.Item>
               <Descriptions.Item label="周租折扣">{((detailVehicle.weeklyDiscount || 0) * 100).toFixed(0)}%</Descriptions.Item>
