@@ -1,0 +1,11 @@
+/* 实名认证审核页：证件照卡片效果 */
+
+/* 详情抽屉中的证件照卡片：hover 浮起 + 边框高亮 */
+.verify-img-card {
+  cursor: pointer;
+
+  &:hover {
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+    border-color: #d9d9d9 !important;
+  }
+}
