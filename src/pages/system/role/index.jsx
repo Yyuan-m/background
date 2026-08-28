@@ -1,16 +1,16 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useMemo } from 'react';
 import {
   Card, Table, Button, Input, Select, Space, Tag, Modal, Form,
-  Popconfirm, Tree, Row, Col, Spin,
+  Popconfirm, Tree, Row, Col, Spin, Empty,
 } from 'antd';
 import { message } from '@/utils/antdStatic';
 import {
   PlusOutlined, SearchOutlined, DeleteOutlined, EditOutlined,
-  KeyOutlined, ReloadOutlined,
+  KeyOutlined, ReloadOutlined, SwapOutlined, ExpandOutlined, ShrinkOutlined,
 } from '@ant-design/icons';
 import {
   getRoleListApi, addRoleApi, updateRoleApi, deleteRoleApi,
-  toggleRoleStatusApi, getMenuTreeApi, saveRolePermissionsApi,
+  toggleRoleStatusApi, getPermissionTreeApi, saveRolePermissionsApi,
 } from '@/api/modules/system';
 import { t } from '@/i18n';
 import { formatTime } from '@/utils/formatTime';
@@ -35,6 +35,9 @@ const RoleManagement = () => {
   const [menuTree, setMenuTree] = useState([]);
   const [checkedKeys, setCheckedKeys] = useState([]);
   const [permSubmitting, setPermSubmitting] = useState(false);
+  // 权限树搜索 / 展开控制
+  const [searchKeyword, setSearchKeyword] = useState('');
+  const [expandedKeys, setExpandedKeys] = useState([]);
 
   const fetchData = useCallback(async (page = 1, pageSize = 10) => {
     setLoading(true);
@@ -122,24 +125,71 @@ const RoleManagement = () => {
     }
   };
 
+  // 收集树中所有节点 key（全选/反选/展开/统计共用）
+  const allMenuKeys = useMemo(() => {
+    const keys = [];
+    const collect = (nodes) => {
+      nodes.forEach((node) => {
+        keys.push(node.key);
+        if (node.children && node.children.length > 0) collect(node.children);
+      });
+    };
+    collect(menuTree);
+    return keys;
+  }, [menuTree]);
+
+  // 已选数量
+  const checkedCount = checkedKeys.length;
+
+  // 按关键字过滤菜单树：仅影响展示，不影响勾选的 key
+  const displayTree = useMemo(() => {
+    const kw = searchKeyword.trim();
+    if (!kw) return menuTree;
+    const filter = (nodes) => {
+      const result = [];
+      nodes.forEach((node) => {
+        const children = node.children ? filter(node.children) : [];
+        const matched = node.title && node.title.indexOf(kw) > -1;
+        if (matched || children.length > 0) {
+          result.push({
+            ...node,
+            title: matched ? (
+              <>
+                {node.title.slice(0, node.title.indexOf(kw))}
+                <span style={{ color: '#1677ff', fontWeight: 600 }}>{kw}</span>
+                {node.title.slice(node.title.indexOf(kw) + kw.length)}
+              </>
+            ) : node.title,
+            children,
+          });
+        }
+      });
+      return result;
+    };
+    return filter(menuTree);
+  }, [searchKeyword, menuTree]);
+
   // 打开权限分配弹窗
   const handleAssignPerm = async (record) => {
     setPermRole(record);
     setPermModalVisible(true);
+    setSearchKeyword('');
     try {
-      const tree = await getMenuTreeApi();
+      const tree = await getPermissionTreeApi();
       setMenuTree(tree);
+      // 展开全部节点
+      const keys = [];
+      const collect = (nodes) => {
+        nodes.forEach((node) => {
+          keys.push(node.key);
+          if (node.children && node.children.length > 0) collect(node.children);
+        });
+      };
+      collect(tree);
+      setExpandedKeys(keys);
       // 超级管理员全选
       if (record.menuPermissions && record.menuPermissions.includes('*')) {
-        const allKeys = [];
-        const collectKeys = (nodes) => {
-          nodes.forEach((node) => {
-            allKeys.push(node.key);
-            if (node.children && node.children.length > 0) collectKeys(node.children);
-          });
-        };
-        collectKeys(tree);
-        setCheckedKeys(allKeys);
+        setCheckedKeys(keys);
       } else {
         setCheckedKeys(record.menuPermissions || []);
       }
@@ -147,6 +197,24 @@ const RoleManagement = () => {
       message.error('获取权限树失败');
     }
   };
+
+  // 搜索时自动展开所有匹配节点（含祖先）；清空搜索时恢复全部展开
+  useEffect(() => {
+    if (!permModalVisible) return;
+    if (searchKeyword.trim()) {
+      const keys = [];
+      const collect = (nodes) => {
+        nodes.forEach((node) => {
+          keys.push(node.key);
+          if (node.children && node.children.length > 0) collect(node.children);
+        });
+      };
+      collect(displayTree);
+      setExpandedKeys(keys);
+    } else {
+      setExpandedKeys(allMenuKeys);
+    }
+  }, [searchKeyword, displayTree, allMenuKeys, permModalVisible]);
 
   const handlePermSave = async () => {
     if (!permRole) return;
@@ -174,18 +242,12 @@ const RoleManagement = () => {
     setCheckedKeys(checked);
   };
 
+  // 全选
   const handleSelectAll = () => {
-    const allKeys = [];
-    const collectKeys = (nodes) => {
-      nodes.forEach((node) => {
-        allKeys.push(node.key);
-        if (node.children && node.children.length > 0) collectKeys(node.children);
-      });
-    };
-    collectKeys(menuTree);
-    setCheckedKeys(allKeys);
+    setCheckedKeys(allMenuKeys);
   };
 
+  // 清空
   const handleDeselectAll = () => {
     if (permRole && permRole.roleKey === 'super_admin') {
       message.warning('超级管理员不能清空全部权限');
@@ -193,6 +255,20 @@ const RoleManagement = () => {
     }
     setCheckedKeys([]);
   };
+
+  // 反选：已选与未选互换
+  const handleInvert = () => {
+    const newChecked = allMenuKeys.filter((key) => !checkedKeys.includes(key));
+    if (permRole && permRole.roleKey === 'super_admin' && newChecked.length === 0) {
+      message.warning('超级管理员不能清空全部权限');
+      return;
+    }
+    setCheckedKeys(newChecked);
+  };
+
+  // 展开/收起全部
+  const handleExpandAll = () => setExpandedKeys(allMenuKeys);
+  const handleCollapseAll = () => setExpandedKeys([]);
 
   const handleTableChange = (pag) => {
     setPagination((prev) => ({ ...prev, current: pag.current, pageSize: pag.pageSize }));
@@ -383,24 +459,44 @@ const RoleManagement = () => {
         onOk={handlePermSave}
         onCancel={() => setPermModalVisible(false)}
         confirmLoading={permSubmitting}
-        width={560}
+        width={620}
         destroyOnClose
       >
-        <div style={{ marginBottom: 12 }}>
+        <div style={{ marginBottom: 12, display: 'flex', alignItems: 'center', gap: 8 }}>
+          <Input
+            prefix={<SearchOutlined />}
+            placeholder="搜索菜单名称"
+            value={searchKeyword}
+            onChange={(e) => setSearchKeyword(e.target.value)}
+            allowClear
+            style={{ width: 190 }}
+          />
+          <span style={{ flex: 1 }} />
           <Space>
+            <Button size="small" icon={<ExpandOutlined />} onClick={handleExpandAll}>展开</Button>
+            <Button size="small" icon={<ShrinkOutlined />} onClick={handleCollapseAll}>收起</Button>
             <Button size="small" onClick={handleSelectAll}>全选</Button>
+            <Button size="small" icon={<SwapOutlined />} onClick={handleInvert}>反选</Button>
             <Button size="small" onClick={handleDeselectAll}>清空</Button>
           </Space>
         </div>
-        <div style={{ maxHeight: 400, overflow: 'auto', border: '1px solid var(--border-color, #e2e8f0)', borderRadius: 6, padding: 12 }}>
-          <Tree
-            checkable
-            defaultExpandAll
-            checkedKeys={checkedKeys}
-            onCheck={handleCheck}
-            treeData={menuTree}
-            fieldNames={{ title: 'title', key: 'key', children: 'children' }}
-          />
+        <div style={{ marginBottom: 8, fontSize: 12, color: 'var(--text-secondary, #8c8c8c)' }}>
+          已选 {checkedCount} 项；搜索仅筛选菜单展示，不影响勾选结果。
+        </div>
+        <div style={{ maxHeight: 360, overflow: 'auto', border: '1px solid var(--border-color, #e2e8f0)', borderRadius: 6, padding: 12 }}>
+          {displayTree.length > 0 ? (
+            <Tree
+              checkable
+              expandedKeys={expandedKeys}
+              onExpand={setExpandedKeys}
+              checkedKeys={checkedKeys}
+              onCheck={handleCheck}
+              treeData={displayTree}
+              fieldNames={{ title: 'title', key: 'key', children: 'children' }}
+            />
+          ) : (
+            <Empty image={Empty.PRESENTED_IMAGE_SIMPLE} description="未找到匹配的菜单" />
+          )}
         </div>
       </Modal>
     </div>

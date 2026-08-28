@@ -1,8 +1,8 @@
 import { useState, useEffect, useCallback } from 'react';
-import { Table, Button, Tag, Modal, Form, Input, Select, Popconfirm, Card } from 'antd';
+import { Table, Button, Tag, Modal, Form, Input, Select, Popconfirm, Card, Space } from 'antd';
 import { message } from '@/utils/antdStatic';
-import { PlusOutlined, DeleteOutlined } from '@ant-design/icons';
-import { getAnnouncementsApi, addAnnouncementApi, deleteAnnouncementApi } from '@/api/modules/system';
+import { PlusOutlined, DeleteOutlined, EditOutlined } from '@ant-design/icons';
+import { getAnnouncementsApi, addAnnouncementApi, updateAnnouncementApi, deleteAnnouncementApi } from '@/api/modules/system';
 import { t } from '@/i18n';
 import { formatTime } from '@/utils/formatTime';
 import DictSelect from '@/components/DictSelect';
@@ -18,6 +18,8 @@ const Announcements = () => {
   const [total, setTotal] = useState(0);
   const [page, setPage] = useState(1);
   const [modalVisible, setModalVisible] = useState(false);
+  // 当前编辑的公告 ID（null 表示新增）
+  const [editingId, setEditingId] = useState(null);
   const [form] = Form.useForm();
   const [submitLoading, setSubmitLoading] = useState(false);
 
@@ -40,7 +42,20 @@ const Announcements = () => {
   }, [fetchData]);
 
   const handleAdd = () => {
+    setEditingId(null);
     form.resetFields();
+    setModalVisible(true);
+  };
+
+  // 打开编辑弹窗：回填公告数据（支持修改标题/内容/优先级/状态）
+  const handleEdit = (record) => {
+    setEditingId(record.id);
+    form.setFieldsValue({
+      title: record.title,
+      content: record.content,
+      priority: record.priority,
+      status: record.status,
+    });
     setModalVisible(true);
   };
 
@@ -48,13 +63,18 @@ const Announcements = () => {
     try {
       const values = await form.validateFields();
       setSubmitLoading(true);
-      await addAnnouncementApi(values);
-      message.success('公告发布成功');
+      if (editingId) {
+        await updateAnnouncementApi({ id: editingId, ...values });
+        message.success('公告修改成功');
+      } else {
+        await addAnnouncementApi(values);
+        message.success('公告发布成功');
+      }
       setModalVisible(false);
       void fetchData();
     } catch (e) {
       if (e.errorFields) return;
-      message.error('发布失败');
+      message.error(editingId ? '修改失败' : '发布失败');
     } finally {
       setSubmitLoading(false);
     }
@@ -92,11 +112,14 @@ const Announcements = () => {
     {
       title: '操作',
       key: 'action',
-      width: 100,
+      width: 180,
       render: (_, record) => (
-        <Popconfirm title="确定删除该公告？" onConfirm={() => handleDelete(record.id)}>
-          <Button type="link" size="small" danger icon={<DeleteOutlined />}>删除</Button>
-        </Popconfirm>
+        <Space size={0}>
+          <Button type="link" size="small" icon={<EditOutlined />} onClick={() => handleEdit(record)}>编辑</Button>
+          <Popconfirm title="确定删除该公告？" onConfirm={() => handleDelete(record.id)}>
+            <Button type="link" size="small" danger icon={<DeleteOutlined />}>删除</Button>
+          </Popconfirm>
+        </Space>
       ),
     },
   ];
@@ -129,7 +152,7 @@ const Announcements = () => {
       </Card>
 
       <Modal
-        title="发布公告"
+        title={editingId ? '修改公告' : '发布公告'}
         open={modalVisible}
         onOk={handleSubmit}
         onCancel={() => setModalVisible(false)}
@@ -159,5 +182,5 @@ const Announcements = () => {
   );
 };
 
-Announcements.routeConfig = { path: '/settings/announcements', permission: 'settings' };
+Announcements.routeConfig = { path: '/announcements', permission: 'settings' };
 export default Announcements;

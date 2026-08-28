@@ -4,7 +4,8 @@ import { Layout, Menu, Spin } from 'antd';
 import {
   DashboardOutlined, CarOutlined, ShoppingCartOutlined, TeamOutlined,
   UserOutlined, DollarOutlined, SettingOutlined, GiftOutlined,
-  ToolOutlined, AuditOutlined, ShopOutlined,
+  ToolOutlined, AuditOutlined, ShopOutlined, SafetyCertificateOutlined,
+  ScheduleOutlined, NotificationOutlined,
 } from '@ant-design/icons';
 import useAppStore from '@/store/useAppStore';
 import useAuthStore from '@/store/useAuthStore';
@@ -26,6 +27,9 @@ const iconMap = {
   SettingOutlined: <SettingOutlined />,
   AuditOutlined: <AuditOutlined />,
   ShopOutlined: <ShopOutlined />,
+  SafetyCertificateOutlined: <SafetyCertificateOutlined />,
+  ScheduleOutlined: <ScheduleOutlined />,
+  NotificationOutlined: <NotificationOutlined />,
 };
 
 // 递归查找路径的所有祖先 key

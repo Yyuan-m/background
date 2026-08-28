@@ -233,6 +233,7 @@ const zhCN = {
     finance: '财务统计',
     marketing: '营销活动',
     afterSales: '售后工单',
+    feedback: '预约咨询',
     settings: '系统设置',
     system: '网站配置',
     announcements: '公告管理',

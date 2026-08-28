@@ -224,7 +224,7 @@ const VehicleList = () => {
         return <Tag color={color}>{text}</Tag>;
       },
     },
-    { title: '标签', dataIndex: 'tags', key: 'tags', width: 120, render: (tags) => parseTags(tags).map((t) => <Tag key={t} color="geekblue">{t}</Tag>) },
+    { title: '标签', dataIndex: 'tags', key: 'tags', width: 180, render: (tags) => parseTags(tags).map((t) => <Tag key={t} color="geekblue">{t}</Tag>) },
     {
       title: '操作', key: 'action', width: 260, fixed: 'right',
       render: (_, record) => (
@@ -272,7 +272,7 @@ const VehicleList = () => {
         <Card className="" variant="borderless">
           {hasButtonPermission('vehicle', 'add') && <div style={{ marginBottom: 16 }}><Button type="primary" icon={<PlusOutlined />} onClick={handleAdd}>新增车辆</Button></div>}
           <div>
-          <Table columns={columns} dataSource={data} rowKey="id" loading={loading} scroll={{ x: 1780 }}
+          <Table columns={columns} dataSource={data} rowKey="id" loading={loading} scroll={{ x: 'max-content' }}
             pagination={{
             current: page,
             pageSize,

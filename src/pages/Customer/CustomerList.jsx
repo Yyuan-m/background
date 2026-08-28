@@ -1,4 +1,4 @@
-import { useState, useEffect, useMemo, useCallback } from 'react';
+﻿import { useState, useEffect, useMemo, useCallback } from 'react';
 import { Table, Button, Space, Tag, Input, InputNumber, Modal, Form, Select, Popconfirm, Row, Col, Card, Progress, Statistic, Descriptions, Image, Spin } from 'antd';
 import { message } from '@/utils/antdStatic';
 import { SearchOutlined, ReloadOutlined, EditOutlined, EyeOutlined } from '@ant-design/icons';
@@ -113,7 +113,7 @@ const CustomerList = () => {
     { title: '信用分', dataIndex: 'creditScore', key: 'creditScore', width: 100,
       render: (v) => <Progress percent={v} size="small" strokeColor={v >= 80 ? '#10b981' : v >= 60 ? '#f59e0b' : '#ef4444'} format={() => v} />,
     },
-    { title: '实名', dataIndex: 'realNameStatus', key: 'realNameStatus', width: 70, render: (v) => v ? <Tag color="green">已认证</Tag> : <Tag color="red">未认证</Tag> },
+    { title: '实名', dataIndex: 'realNameStatus', key: 'realNameStatus', width: 70, render: (v) => { const cfg = realNameStatusMap[v] || realNameStatusMap[0]; return <Tag color={cfg.color}>{cfg.text}</Tag>; } },
     { title: '租赁次数', dataIndex: 'totalOrders', key: 'totalOrders', width: 80 },
     { title: '累计消费', dataIndex: 'totalSpent', key: 'totalSpent', width: 110, render: (v) => <span style={{ color: 'var(--amount-color, #c9a96e)', fontWeight: 500 }}>¥{v?.toLocaleString()}</span> },
     { title: '标签', dataIndex: 'tags', key: 'tags', width: 150, render: (tags) => (Array.isArray(tags) ? tags : parseTags(tags)).map((t) => <Tag key={t} color="geekblue">{t}</Tag>) },

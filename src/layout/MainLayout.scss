@@ -12,6 +12,16 @@
   overflow: hidden;
 }
 
+// 关闭“固定顶栏”时：页面整体滚动，顶栏随内容滚动离开视口
+.main-layout--scroll {
+  height: auto;
+  overflow: visible;
+
+  .main-content {
+    overflow: visible;
+    flex: none;
+  }
+}
 .breadcrumb-wrapper {
   padding: 12px 24px;
   background: var(--bg-container, #ffffff);

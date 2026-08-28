@@ -21,6 +21,19 @@ export const toggleCustomerStatusApi = (id, status) => put(`/api/customer/status
 /** 获取客户订单 */
 export const getCustomerOrdersApi = (id) => get(`/api/customer/orders/${id}`);
 
+// ============ 实名认证审核 ============
+
+/** 认证记录列表（status: pending/approved/rejected） */
+export const getVerifyListApi = (params) => get('/api/customer/verify/list', params);
+
+/** 认证记录详情 */
+export const getVerifyDetailApi = (id) => get(`/api/customer/verify/detail/${id}`);
+
+/** 审核认证（approved: true通过 / false驳回，驳回需 rejectReason） */
+export const reviewVerifyApi = (id, data) => post(`/api/customer/verify/review/${id}`, data);
+
+/** 审核统计概览（total/pending/approved/rejected/today） */
+export const getVerifyStatsApi = () => get('/api/customer/verify/stats');
 // 别名导出
 export const getCustomerListApi = getCustomersApi;
 export const updateCustomerStatusApi = toggleCustomerStatusApi;

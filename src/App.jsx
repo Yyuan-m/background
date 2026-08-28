@@ -8,8 +8,13 @@ import logger from '@/utils/logger';
 import { useAppConfig } from '@/context/AppConfigContext';
 import { StaticFunctionSetter } from '@/utils/antdStatic';
 
+const borderRadiusMap = { small: 4, medium: 6, large: 10 };
+const fontSizeMap = { small: 13, default: 14, large: 16 };
+
 const App = () => {
   const antdConfig = useThemeStore((s) => s.getAntdConfig());
+  const themeBorderRadius = useThemeStore((s) => s.borderRadius);
+  const themeFontSize = useThemeStore((s) => s.fontSize);
   const appConfig = useAppConfig();
 
   useEffect(() => {
@@ -48,7 +53,8 @@ const App = () => {
           colorWarning: antdConfig.colorWarning,
           colorError: antdConfig.colorError,
           colorInfo: antdConfig.colorInfo,
-          borderRadius: 6,
+          borderRadius: borderRadiusMap[themeBorderRadius] ?? 6,
+          fontSize: fontSizeMap[themeFontSize] ?? 14,
           fontFamily: "-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif",
         },
         components: {

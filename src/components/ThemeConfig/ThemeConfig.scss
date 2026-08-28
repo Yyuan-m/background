@@ -73,6 +73,16 @@
   margin-bottom: 8px;
 }
 
+.config-label-help {
+  color: var(--text-muted, #94a3b8);
+  cursor: help;
+  font-size: 13px;
+  transition: color 0.2s;
+
+  &:hover {
+    color: var(--primary-color, #3b82f6);
+  }
+}
 .config-switch-row {
   display: flex;
   align-items: center;

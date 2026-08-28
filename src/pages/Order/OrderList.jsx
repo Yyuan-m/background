@@ -82,7 +82,10 @@ const OrderList = () => {
 
   const handleExport = () => {
     const headers = '订单号,车辆,联系人,联系电话,租期,总金额,状态,城市,门店,创建时间\n';
-    const csv = data.map((d) => `${d.orderNo},${d.carName},${d.contactName},${d.contactPhone},${d.startDate}~${d.endDate}(${d.days}天),${d.totalAmount},${d.statusName || statusMap[d.status]?.label || d.status},${d.city || ''},${d.store || ''},${d.createTime}`).join('\n');
+    const csv = data.map((d) => {
+      const carNames = (d.items && d.items.length > 0) ? d.items.map((it) => it.carName).join('、') : (d.carName || '');
+      return `${d.orderNo},${carNames},${d.contactName},${d.contactPhone},${d.startDate}~${d.endDate}(${d.days}天),${d.totalAmount},${d.statusName || statusMap[d.status]?.label || d.status},${d.city || ''},${d.store || ''},${d.createTime}`;
+    }).join('\n');
     const blob = new Blob([`\uFEFF${  headers  }${csv}`], { type: 'text/csv;charset=utf-8' });
     const url = URL.createObjectURL(blob);
     const a = document.createElement('a');
@@ -93,7 +96,22 @@ const OrderList = () => {
 
   const columns = useMemo(() => [
     { title: '订单号', dataIndex: 'orderNo', key: 'orderNo', width: 160 },
-    { title: '车辆', dataIndex: 'carName', key: 'carName', width: 150, ellipsis: true },
+    {
+      title: '车辆', key: 'cars', width: 180,
+      render: (_, r) => {
+        // 优先取后端填充的 items（多车明细），否则回退主表冗余 carName
+        const names = (r.items && r.items.length > 0)
+          ? r.items.map((it) => it.carName).filter(Boolean)
+          : (r.carName ? [r.carName] : []);
+        if (names.length === 0) return '-';
+        return (
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
+            {names.slice(0, 2).map((n, i) => <span key={i} style={{ lineHeight: '18px' }}>{n}</span>)}
+            {names.length > 2 && <span style={{ color: 'var(--text-tertiary, #999)', fontSize: 12 }}>等 {names.length} 辆车</span>}
+          </div>
+        );
+      },
+    },
     { title: '联系人', dataIndex: 'contactName', key: 'contactName', width: 90 },
     { title: '联系电话', dataIndex: 'contactPhone', key: 'contactPhone', width: 120 },
     { title: '租期', key: 'period', width: 200, render: (_, r) => `${formatTime(r.startDate)}~${formatTime(r.endDate)}(${r.days}天)` },
