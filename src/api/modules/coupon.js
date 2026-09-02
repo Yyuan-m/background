@@ -11,13 +11,14 @@ export const getCouponListApi = (params) =>
 export const getCouponDetailApi = (id) =>
   get(`/api/coupon/${id}`);
 
-/** 新增优惠券（默认草稿态，需确认投放后C端才可见） */
+/** 新增优惠券（默认草稿态，需确认投放后C端才可见；定向发放则直接发放）
+ *  成功提示由页面按发放方式自行展示（全量=草稿态 / 定向=已发放），此处不弹默认提示，避免文案与实际不符 */
 export const addCouponApi = (data) =>
-  post('/api/coupon/add', data, { successMsg: '优惠券新增成功（草稿态，需确认投放后C端可见）' });
+  post('/api/coupon/add', data, { showSuccessMsg: false });
 
 /** 更新优惠券 */
 export const updateCouponApi = (data) =>
-  put('/api/coupon/update', data, { successMsg: '优惠券更新成功' });
+  put('/api/coupon/update', data, { showSuccessMsg: false });
 
 /** 删除优惠券 */
 export const deleteCouponApi = (id) =>

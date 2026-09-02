@@ -25,6 +25,7 @@ import {
   processFeedbackApi, updateFeedbackRemarkApi, deleteFeedbackApi,
 } from '@/api/modules/feedback';
 import { customerImageUrl } from '@/utils/imageUrl';
+import useAuthStore from '@/store/useAuthStore';
 
 const { RangePicker } = DatePicker;
 
@@ -52,6 +53,7 @@ const statTips = {
 };
 
 const FeedbackPage = () => {
+  const { hasPermission } = useAuthStore();
   const [data, setData] = useState([]);
   const [loading, setLoading] = useState(false);
   const [total, setTotal] = useState(0);
@@ -308,26 +310,28 @@ const FeedbackPage = () => {
       render: (_, r) => (
         <Space size={0}>
           <Button type="link" size="small" icon={<EyeOutlined />} onClick={() => openDetail(r)}>详情</Button>
-          {r.status === 'pending' && (
+          {r.status === 'pending' && hasPermission('feedback:process') && (
             <Button type="link" size="small" icon={<CheckOutlined />} onClick={() => openProcess(r)}>处理</Button>
           )}
-          {r.status === 'handled' && (
+          {r.status === 'handled' && hasPermission('feedback:update') && (
             <Button type="link" size="small" icon={<EditOutlined />} onClick={() => openRemark(r)}>备注</Button>
           )}
-          <Popconfirm
-            title="确认删除该记录？"
-            description="删除后不可恢复，仅用于清理垃圾数据"
-            okText="删除"
-            cancelText="取消"
-            okButtonProps={{ danger: true }}
-            onConfirm={() => handleDelete(r)}
-          >
-            <Button type="link" size="small" danger icon={<DeleteOutlined />}>删除</Button>
-          </Popconfirm>
+          {hasPermission('feedback:delete') && (
+            <Popconfirm
+              title="确认删除该记录？"
+              description="删除后不可恢复，仅用于清理垃圾数据"
+              okText="删除"
+              cancelText="取消"
+              okButtonProps={{ danger: true }}
+              onConfirm={() => handleDelete(r)}
+            >
+              <Button type="link" size="small" danger icon={<DeleteOutlined />}>删除</Button>
+            </Popconfirm>
+          )}
         </Space>
       ),
     },
-  ], []);
+  ], [hasPermission]);
 
   // 统计卡片配置（点击卡片联动筛选）
   const statCards = [
@@ -482,12 +486,12 @@ const FeedbackPage = () => {
               </Descriptions.Item>
             </Descriptions>
 
-            {detailInfo.status === 'pending' && (
+            {detailInfo.status === 'pending' && hasPermission('feedback:process') && (
               <Button type="primary" block style={{ marginTop: 20 }} onClick={() => { setDetailVisible(false); openProcess(detailInfo); }}>
                 去处理
               </Button>
             )}
-            {detailInfo.status === 'handled' && (
+            {detailInfo.status === 'handled' && hasPermission('feedback:update') && (
               <Button block style={{ marginTop: 20 }} icon={<EditOutlined />} onClick={() => { setDetailVisible(false); openRemark(detailInfo); }}>
                 修改处理备注
               </Button>

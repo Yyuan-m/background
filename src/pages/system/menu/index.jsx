@@ -1,7 +1,7 @@
 import { useState, useEffect, useCallback, useMemo } from 'react';
 import {
   Card, Table, Button, Space, Tag, Modal, Form, Input, InputNumber,
-  Switch, Popconfirm, Spin, Tooltip, TreeSelect, Row, Col, Radio,
+  Switch, Popconfirm, Spin, Tooltip, TreeSelect, Row, Col, Radio, Dropdown,
 } from 'antd';
 import { message } from '@/utils/antdStatic';
 import {
@@ -14,6 +14,7 @@ import {
   getMenuListApi, addMenuApi, updateMenuApi, deleteMenuApi, toggleMenuStatusApi,
 } from '@/api/modules/menu';
 import useAppStore from '@/store/useAppStore';
+import useAuthStore from '@/store/useAuthStore';
 import IconPicker, { renderIcon } from '@/components/IconPicker';
 import { t } from '@/i18n';
 import { formatTime } from '@/utils/formatTime';
@@ -75,6 +76,11 @@ const MenuManagement = () => {
   const [parentMenuId, setParentMenuId] = useState(null);
   const [form] = Form.useForm();
   const [submitting, setSubmitting] = useState(false);
+  const { hasPermission } = useAuthStore();
+  const canMenuAdd = hasPermission('settings:menu:add');
+  const canMenuUpdate = hasPermission('settings:menu:update');
+  const canMenuStatus = hasPermission('settings:menu:status');
+  const canMenuDelete = hasPermission('settings:menu:delete');
 
   const fetchData = useCallback(async () => {
     setLoading(true);
@@ -82,8 +88,9 @@ const MenuManagement = () => {
       const list = await getMenuListApi();
       const safeList = Array.isArray(list) ? list : [];
       setMenuData(safeList);
-      // 用已获取的数据直接更新侧边栏，避免再发重复请求被去重机制取消
-      useAppStore.getState().setMenuTreeFromList(safeList);
+      // 注意：这里不再用 /list 数据重建侧边栏——/list 是管理员视角的全量菜单（无权限过滤），
+      // 与登录时 user-menus 构建的菜单数据不一致，替换会导致侧边栏闪烁。
+      // 侧边栏仅在菜单数据被真正修改后由 refreshMenuTree 静默刷新（数据源正确且无闪烁）。
     } catch {
       /* request.js 已统一提示 */
     } finally {
@@ -102,15 +109,19 @@ const MenuManagement = () => {
     void fetchData();
   };
 
-  const handleAdd = (parentId = null) => {
+  const handleAdd = (parentId = null, defaultType = MenuType.MENU) => {
     setEditingMenu(null);
     setParentMenuId(parentId);
     const parent = parentId ? menuData.find((m) => m.id === parentId) : null;
-    setModalTitle(parent ? `新增子菜单 - ${parent.name}` : '新增顶级菜单');
+    if (parent) {
+      setModalTitle(defaultType === MenuType.BUTTON ? `新增按钮 - ${parent.name}` : `新增子菜单 - ${parent.name}`);
+    } else {
+      setModalTitle('新增顶级菜单');
+    }
     form.resetFields();
     form.setFieldsValue({
       parentId: parentId || null,
-      type: MenuType.MENU,
+      type: defaultType,
       name: '',
       icon: '',
       path: '',
@@ -150,19 +161,34 @@ const MenuManagement = () => {
     setModalVisible(true);
   };
 
+  // 菜单数据被修改后：刷新表格 + 静默刷新侧边栏（user-menus 数据源，无闪烁）
+  const refreshAfterMutation = () => {
+    void fetchData();
+    void useAppStore.getState().refreshMenuTree();
+  };
+
   const handleModalOk = async () => {
     try {
       const values = await form.validateFields();
       setSubmitting(true);
+      // Switch 组件提交的是布尔值，转为后端需要的 0/1 整数
+      const payload = {
+        ...values,
+        status: values.status ? 1 : 0,
+        visible: values.visible ? 1 : 0,
+        isFrame: values.isFrame ? 1 : 0,
+        keepAlive: values.keepAlive ? 1 : 0,
+        affix: values.affix ? 1 : 0,
+      };
       if (editingMenu) {
-        await updateMenuApi({ id: editingMenu.id, ...values });
+        await updateMenuApi({ id: editingMenu.id, ...payload });
         message.success('菜单更新成功');
       } else {
-        await addMenuApi(values);
+        await addMenuApi(payload);
         message.success('菜单创建成功');
       }
       setModalVisible(false);
-      void fetchData();
+      refreshAfterMutation();
     } catch (e) {
       if (e.errorFields) return;
     } finally {
@@ -174,7 +200,7 @@ const MenuManagement = () => {
     try {
       await deleteMenuApi(record.id);
       message.success('菜单删除成功');
-      void fetchData();
+      refreshAfterMutation();
     } catch (e) {
       void fetchData();
     }
@@ -185,7 +211,7 @@ const MenuManagement = () => {
     try {
       await toggleMenuStatusApi(record.id, newStatus);
       message.success(newStatus === 1 ? '菜单已启用' : '菜单已禁用');
-      void fetchData();
+      refreshAfterMutation();
     } catch (e) {
       /* request.js 已统一提示 */
     }
@@ -198,7 +224,7 @@ const MenuManagement = () => {
     [MenuType.BUTTON]: { color: 'orange', label: '按钮', icon: <FileOutlined /> },
   };
 
-  const columns = [
+  const columns = useMemo(() => [
     {
       title: '菜单名称', dataIndex: 'name', key: 'name', width: 220,
       render: (text, record) => (
@@ -251,42 +277,59 @@ const MenuManagement = () => {
         : <Tooltip title="侧边栏隐藏"><EyeInvisibleOutlined style={{ color: 'var(--text-secondary, #64748b)' }} /></Tooltip>,
     },
     { title: '创建时间', dataIndex: 'createdAt', key: 'createdAt', width: 170, render: formatTime.render },
-    {
+    ...(canMenuAdd || canMenuUpdate || canMenuStatus || canMenuDelete ? [{
       title: '操作', key: 'action', width: 260, fixed: 'right',
       render: (_, record) => (
         <Space size="small">
-          <Button type="link" size="small" icon={<PlusOutlined />}
-            onClick={() => handleAdd(record.id)}
-            disabled={record.type === MenuType.BUTTON}>
-            新增子菜单
-          </Button>
-          <Button type="link" size="small" icon={<EditOutlined />} onClick={() => handleEdit(record)}>
-            编辑
-          </Button>
-          <Popconfirm
-            title={record.status === 1 ? '确定要禁用该菜单吗？' : '确定要启用该菜单吗？'}
-            onConfirm={() => handleToggleStatus(record)}
-            okText="确定" cancelText="取消" disabled={record.isCore}
-          >
-            <Button type="link" size="small" disabled={record.isCore}
-              style={{ color: record.isCore ? undefined : (record.status === 1 ? 'var(--warning-color)' : 'var(--success-color)') }}>
-              {record.status === 1 ? '禁用' : '启用'}
+          {canMenuAdd && (
+            <Dropdown
+              trigger={['click']}
+              disabled={record.type === MenuType.BUTTON}
+              menu={{
+                items: [
+                  { key: 'submenu', icon: <FolderOutlined />, label: '新增子菜单', onClick: () => handleAdd(record.id, MenuType.MENU) },
+                  { key: 'button', icon: <FileOutlined />, label: '新增按钮', onClick: () => handleAdd(record.id, MenuType.BUTTON) },
+                ],
+              }}
+            >
+              <Button type="link" size="small" icon={<PlusOutlined />} disabled={record.type === MenuType.BUTTON}>
+                新增
+              </Button>
+            </Dropdown>
+          )}
+          {canMenuUpdate && (
+            <Button type="link" size="small" icon={<EditOutlined />} onClick={() => handleEdit(record)}>
+              编辑
             </Button>
-          </Popconfirm>
-          <Popconfirm
-            title="确定要删除该菜单吗？"
-            description={record.isCore ? '核心菜单不可删除' : '删除后不可恢复'}
-            onConfirm={() => handleDelete(record)}
-            okText="确定" cancelText="取消" disabled={record.isCore}
-          >
-            <Button type="link" size="small" danger icon={<DeleteOutlined />} disabled={record.isCore}>
-              删除
-            </Button>
-          </Popconfirm>
+          )}
+          {canMenuStatus && (
+            <Popconfirm
+              title={record.status === 1 ? '确定要禁用该菜单吗？' : '确定要启用该菜单吗？'}
+              onConfirm={() => handleToggleStatus(record)}
+              okText="确定" cancelText="取消" disabled={record.isCore}
+            >
+              <Button type="link" size="small" disabled={record.isCore}
+                style={{ color: record.isCore ? undefined : (record.status === 1 ? 'var(--warning-color)' : 'var(--success-color)') }}>
+                {record.status === 1 ? '禁用' : '启用'}
+              </Button>
+            </Popconfirm>
+          )}
+          {canMenuDelete && (
+            <Popconfirm
+              title="确定要删除该菜单吗？"
+              description={record.isCore ? '核心菜单不可删除' : '删除后不可恢复'}
+              onConfirm={() => handleDelete(record)}
+              okText="确定" cancelText="取消" disabled={record.isCore}
+            >
+              <Button type="link" size="small" danger icon={<DeleteOutlined />} disabled={record.isCore}>
+                删除
+              </Button>
+            </Popconfirm>
+          )}
         </Space>
       ),
-    },
-  ];
+    }] : []),
+  ], [typeMeta, handleAdd, handleEdit, handleToggleStatus, handleDelete, canMenuAdd, canMenuUpdate, canMenuStatus, canMenuDelete]);
 
   // 上级菜单 TreeSelect 数据：编辑时排除自身避免循环引用
   const treeSelectData = useMemo(
@@ -316,9 +359,11 @@ const MenuManagement = () => {
           <Button icon={<ShrinkOutlined />} onClick={handleCollapseAll}>
             收起全部
           </Button>
-          <Button type="primary" icon={<PlusOutlined />} onClick={() => handleAdd(null)}>
-            新增顶级菜单
-          </Button>
+          {hasPermission('settings:menu:add') && (
+            <Button type="primary" icon={<PlusOutlined />} onClick={() => handleAdd(null)}>
+              新增顶级菜单
+            </Button>
+          )}
         </Space>
       </Card>
 

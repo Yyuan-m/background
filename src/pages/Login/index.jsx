@@ -4,6 +4,7 @@ import { Form } from 'antd';
 import { message } from '@/utils/antdStatic';
 import useAuthStore from '@/store/useAuthStore';
 import auth from '@/utils/auth';
+import { routePermissionMap } from '@/router/routeConfig';
 
 import LoginLeft from './LoginLeft';
 import LoginForm from './LoginForm';
@@ -18,9 +19,6 @@ const Login = () => {
 
   // 记住的账号密码
   const rememberData = auth.getRemember();
-
-  // 从哪来的回哪去
-  const from = location.state?.from || '/dashboard';
 
   // ==================== 表单提交 ====================
   const onFinish = async (values) => {
@@ -40,7 +38,12 @@ const Login = () => {
       }
       message.success('登录成功');
 
-      navigate(from, { replace: true });
+      // 优先回到来源页；来源页无权限（换账号场景）则跳首页，由首页重定向到第一个有权限的菜单
+      const from = location.state?.from || '/dashboard';
+      const { hasPermission } = useAuthStore.getState();
+      const requiredPermission = routePermissionMap[from];
+      const target = requiredPermission && !hasPermission(requiredPermission) ? '/' : from;
+      navigate(target, { replace: true });
     } else {
       /* request.js 已统一提示 */
     }

@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useMemo } from 'react';
 import { Card, Table, Select, Row, Col, Button, Tag, Space, Modal, Form, Input, InputNumber, DatePicker, Popconfirm, Descriptions } from 'antd';
 import { PlusOutlined, SearchOutlined, ReloadOutlined, EditOutlined, DeleteOutlined, EyeOutlined, CheckCircleOutlined } from '@ant-design/icons';
 import { message } from '@/utils/antdStatic';
@@ -8,6 +8,7 @@ import DictSelect from '@/components/DictSelect';
 import { useDict } from '@/hooks/useDict';
 import useVehicleOptions from '@/hooks/useVehicleOptions';
 import { formatTime } from '@/utils/formatTime';
+import useAuthStore from '@/store/useAuthStore';
 
 const VIOLATION_TYPE_DICT = 'violation_type';
 const VIOLATION_STATUS_DICT = 'violation_status';
@@ -17,6 +18,7 @@ const statusColorMap = { resolved: 'green', processing: 'blue' };
 const ViolationList = () => {
   const { options: vehicleOptions } = useVehicleOptions();
   const { map: statusMap } = useDict(VIOLATION_STATUS_DICT);
+  const { hasPermission } = useAuthStore();
   const [data, setData] = useState([]);
   const [loading, setLoading] = useState(false);
   const [pagination, setPagination] = useState({ page: 1, pageSize: 10 });
@@ -147,7 +149,7 @@ const ViolationList = () => {
     } finally { setSubmitLoading(false); }
   };
 
-  const columns = [
+  const columns = useMemo(() => [
     { title: '车辆', dataIndex: 'vehicleName', key: 'vehicleName', width: 150 },
     { title: '订单号', dataIndex: 'orderNo', key: 'orderNo', width: 140, render: (v) => v || '-' },
     { title: '客户', dataIndex: 'customerName', key: 'customerName', width: 80, render: (v) => v || '-' },
@@ -169,18 +171,21 @@ const ViolationList = () => {
       render: (_, r) => (
         <Space size="small" wrap>
           <Button type="link" size="small" icon={<EyeOutlined />} onClick={() => handleDetail(r.id)}>详情</Button>
-          <Button type="link" size="small" icon={<CheckCircleOutlined />} onClick={() => openHandle(r)}>处理</Button>
-          <Button type="link" size="small" icon={<EditOutlined />} onClick={() => handleEdit(r)}>编辑</Button>
-          <Popconfirm title="确认删除该违章记录？" onConfirm={() => handleDelete(r.id)} okText="确认" cancelText="取消">
-            <Button type="link" size="small" danger icon={<DeleteOutlined />}>删除</Button>
-          </Popconfirm>
+          {hasPermission('vehicle:violation:handle') && <Button type="link" size="small" icon={<CheckCircleOutlined />} onClick={() => openHandle(r)}>处理</Button>}
+          {hasPermission('vehicle:violation:update') && <Button type="link" size="small" icon={<EditOutlined />} onClick={() => handleEdit(r)}>编辑</Button>}
+          {hasPermission('vehicle:violation:delete') && (
+            <Popconfirm title="确认删除该违章记录？" onConfirm={() => handleDelete(r.id)} okText="确认" cancelText="取消">
+              <Button type="link" size="small" danger icon={<DeleteOutlined />}>删除</Button>
+            </Popconfirm>
+          )}
         </Space>
       ),
     },
-  ];
+  ], [hasPermission, statusMap, handleDetail, openHandle, handleEdit, handleDelete]);
 
   return (
-    <>
+    <div className="page-container">
+      <h2 className="page-title">违章记录</h2>
       <Card variant="borderless">
         <Row gutter={[16, 16]} align="middle">
           <Col xs={24} sm={12} md={5}>
@@ -222,7 +227,7 @@ const ViolationList = () => {
       </Card>
       <Card variant="borderless" style={{ marginTop: 16 }}>
         <div style={{ marginBottom: 16 }}>
-          <Button type="primary" icon={<PlusOutlined />} onClick={handleAdd}>新增违章记录</Button>
+          {hasPermission('vehicle:violation:add') && <Button type="primary" icon={<PlusOutlined />} onClick={handleAdd}>新增违章记录</Button>}
         </div>
         <Table
           columns={columns}
@@ -329,8 +334,9 @@ const ViolationList = () => {
           </Descriptions>
         )}
       </Modal>
-    </>
+    </div>
   );
 };
 
+ViolationList.routeConfig = { path: '/vehicles/violations', permission: 'vehicle:violation' };
 export default ViolationList;

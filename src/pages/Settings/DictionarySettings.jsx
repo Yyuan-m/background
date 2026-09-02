@@ -22,6 +22,7 @@ import {
 } from '@/api/modules/dict';
 import { t } from '@/i18n';
 import { formatTime } from '@/utils/formatTime';
+import useAuthStore from '@/store/useAuthStore';
 
 const STATUS_OPTIONS = [
   { value: 1, label: '启用' },
@@ -67,6 +68,10 @@ const DictionarySettings = () => {
   // 字典数据筛选条件
   const [dataFilters, setDataFilters] = useState({ dictLabel: '', status: undefined });
   const [dataFiltersInput, setDataFiltersInput] = useState({ dictLabel: '', status: undefined });
+
+  const { hasPermission } = useAuthStore();
+  const canDictUpdate = hasPermission('settings:dict:update');
+  const canDictDelete = hasPermission('settings:dict:delete');
 
   // ========== 字典类型查询 ==========
   const fetchTypes = useCallback(async () => {
@@ -338,14 +343,16 @@ const DictionarySettings = () => {
       render: (_, record) => (
         <Space>
           <Button type="link" size="small" icon={<EyeOutlined />} onClick={() => handleViewData(record)}>数据</Button>
-          <Button type="link" size="small" icon={<EditOutlined />} onClick={() => handleEdit(record)}>编辑</Button>
-          <Popconfirm title="确认删除该字典类型？" onConfirm={() => handleDelete(record.id)} okText="确认" cancelText="取消">
-            <Button type="link" size="small" danger icon={<DeleteOutlined />}>删除</Button>
-          </Popconfirm>
+          {canDictUpdate && <Button type="link" size="small" icon={<EditOutlined />} onClick={() => handleEdit(record)}>编辑</Button>}
+          {canDictDelete && (
+            <Popconfirm title="确认删除该字典类型？" onConfirm={() => handleDelete(record.id)} okText="确认" cancelText="取消">
+              <Button type="link" size="small" danger icon={<DeleteOutlined />}>删除</Button>
+            </Popconfirm>
+          )}
         </Space>
       ),
     },
-  ], [data, pagination]);
+  ], [data, pagination, canDictUpdate, canDictDelete]);
 
   const dictDataColumns = useMemo(() => [
     { title: '标签', dataIndex: 'dictLabel', key: 'dictLabel', width: 160 },
@@ -364,18 +371,20 @@ const DictionarySettings = () => {
     { title: '状态', dataIndex: 'status', key: 'status', width: 90, render: statusRender },
     { title: '备注', dataIndex: 'remark', key: 'remark', ellipsis: true },
     { title: '创建时间', dataIndex: 'createdAt', key: 'createdAt', width: 170, render: formatTime.render },
-    {
+    ...(canDictUpdate || canDictDelete ? [{
       title: '操作', key: 'action', width: 140, fixed: 'right',
       render: (_, record) => (
         <Space>
-          <Button type="link" size="small" icon={<EditOutlined />} onClick={() => handleEditData(record)}>编辑</Button>
-          <Popconfirm title="确认删除该字典数据？" onConfirm={() => handleDeleteData(record.id)} okText="确认" cancelText="取消">
-            <Button type="link" size="small" danger icon={<DeleteOutlined />}>删除</Button>
-          </Popconfirm>
+          {canDictUpdate && <Button type="link" size="small" icon={<EditOutlined />} onClick={() => handleEditData(record)}>编辑</Button>}
+          {canDictDelete && (
+            <Popconfirm title="确认删除该字典数据？" onConfirm={() => handleDeleteData(record.id)} okText="确认" cancelText="取消">
+              <Button type="link" size="small" danger icon={<DeleteOutlined />}>删除</Button>
+            </Popconfirm>
+          )}
         </Space>
       ),
-    },
-  ], [dictData, dictDataPagination]);
+    }] : []),
+  ], [dictData, dictDataPagination, canDictUpdate, canDictDelete]);
 
   // 字典类型行选择
   const rowSelection = {
@@ -442,9 +451,9 @@ const DictionarySettings = () => {
       <Card variant="borderless">
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16, flexWrap: 'wrap', gap: 8 }}>
           <Space wrap>
-            <Button type="primary" icon={<PlusOutlined />} onClick={handleAdd}>新增字典类型</Button>
+            {hasPermission('settings:dict:add') && <Button type="primary" icon={<PlusOutlined />} onClick={handleAdd}>新增字典类型</Button>}
             <Button icon={<ReloadOutlined />} onClick={handleRefresh}>刷新</Button>
-            {hasTypeSelection && (
+            {hasTypeSelection && hasPermission('settings:dict:delete') && (
               <Popconfirm
                 title={`确认批量删除选中的 ${selectedRowKeys.length} 条字典类型？`}
                 description="若类型下存在字典数据将无法删除"
@@ -608,8 +617,8 @@ const DictionarySettings = () => {
         {/* 字典数据操作区 */}
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12, flexWrap: 'wrap', gap: 8 }}>
           <Space wrap>
-            <Button type="primary" icon={<PlusOutlined />} onClick={handleAddData}>新增字典数据</Button>
-            {hasDataSelection && (
+            {hasPermission('settings:dict:add') && <Button type="primary" icon={<PlusOutlined />} onClick={handleAddData}>新增字典数据</Button>}
+            {hasDataSelection && hasPermission('settings:dict:delete') && (
               <Popconfirm
                 title={`确认批量删除选中的 ${dataSelectedRowKeys.length} 条字典数据？`}
                 onConfirm={handleBatchDeleteData}

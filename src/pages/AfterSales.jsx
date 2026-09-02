@@ -9,12 +9,14 @@ import { formatTime } from '@/utils/formatTime';
 import { getChartColor } from '@/utils/chartColors';
 import DictSelect from '@/components/DictSelect';
 import { useDict } from '@/hooks/useDict';
+import useAuthStore from '@/store/useAuthStore';
 
 const statusColorMap = { pending: 'default', processing: 'processing', resolved: 'success', rejected: 'error' };
 const typeColorMap = { service: 'orange', vehicle: 'red', billing: 'gold', damage: 'volcano', other: 'blue' };
 const priorityColorMap = { urgent: 'red', high: 'orange', normal: 'blue', low: 'default' };
 
 const AfterSales = () => {
+  const { hasPermission } = useAuthStore();
   const [filterStatus, setFilterStatus] = useState('');
   const [detailVisible, setDetailVisible] = useState(false);
   const [currentComplaint, setCurrentComplaint] = useState(null);
@@ -112,10 +114,12 @@ const AfterSales = () => {
     { title: '状态', dataIndex: 'status', key: 'status', width: 80, render: (s) => <Tag color={statusColorMap[s] || 'default'}>{complaintStatusMap[s]?.label || s}</Tag> },
     { title: '满意度', dataIndex: 'satisfaction', key: 'satisfaction', width: 80, render: (v) => v > 0 ? `${'★'.repeat(v)}${'☆'.repeat(5 - v)}` : '-' },
     { title: '创建时间', dataIndex: 'createdAt', key: 'createdAt', width: 150, render: formatTime.render },
-    { title: '操作', key: 'action', width: 100, render: (_, record) => (
-      <Button type="link" size="small" onClick={() => handleViewDetail(record)}>处理</Button>
-    ) },
-  ], [handleViewDetail, complaintTypeMap, complaintStatusMap, priorityMap]);
+    ...(hasPermission('after_sales:complaint:handle') ? [{
+      title: '操作', key: 'action', width: 100, render: (_, record) => (
+        <Button type="link" size="small" onClick={() => handleViewDetail(record)}>处理</Button>
+      ),
+    }] : []),
+  ], [handleViewDetail, complaintTypeMap, complaintStatusMap, priorityMap, hasPermission]);
 
   return (
     <div className="page-container">

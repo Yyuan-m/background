@@ -11,6 +11,7 @@ import { formatTime } from '@/utils/formatTime';
 import dayjs from 'dayjs';
 import DictSelect from '@/components/DictSelect';
 import { useDict } from '@/hooks/useDict';
+import useAuthStore from '@/store/useAuthStore';
 
 const typeColorMap = { maintenance: 'orange', insurance: 'blue', operation: 'purple' };
 
@@ -35,6 +36,9 @@ const CostTab = () => {
   const [form] = Form.useForm();
 
   const { map: costTypeMap } = useDict('cost_type');
+  const { hasPermission } = useAuthStore();
+  const canCostUpdate = hasPermission('finance:cost:update');
+  const canCostDelete = hasPermission('finance:cost:delete');
 
   // 车辆成本参考数据
   const fetchVehicleCostData = useCallback(async () => {
@@ -165,18 +169,21 @@ const CostTab = () => {
     { title: '明细', dataIndex: 'detail', key: 'detail', ellipsis: true },
     { title: '金额', dataIndex: 'amount', key: 'amount', width: 130, render: (v) => <span style={{ color: 'var(--error-color, #ef4444)' }}>¥{Number(v || 0).toLocaleString()}</span> },
     { title: '日期', dataIndex: 'date', key: 'date', width: 120, render: formatTime.render },
-    { title: '操作', key: 'action', width: 160, fixed: 'right',
+    ...(canCostUpdate || canCostDelete ? [{
+      title: '操作', key: 'action', width: 160, fixed: 'right',
       render: (_, record) => (
         <Space>
-          <Button type="link" size="small" icon={<EditOutlined />} onClick={() => handleEdit(record)}>编辑</Button>
-          <Popconfirm title="确定删除？" onConfirm={() => handleDelete(record.id)}>
-            <Button type="link" size="small" danger icon={<DeleteOutlined />}>删除</Button>
-          </Popconfirm>
+          {canCostUpdate && <Button type="link" size="small" icon={<EditOutlined />} onClick={() => handleEdit(record)}>编辑</Button>}
+          {canCostDelete && (
+            <Popconfirm title="确定删除？" onConfirm={() => handleDelete(record.id)}>
+              <Button type="link" size="small" danger icon={<DeleteOutlined />}>删除</Button>
+            </Popconfirm>
+          )}
         </Space>
       ),
-    },
+    }] : []),
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  ], [costTypeMap]);
+  ], [costTypeMap, canCostUpdate, canCostDelete]);
 
   return (
     <div>
@@ -269,7 +276,7 @@ const CostTab = () => {
       <Card
         title="其他成本记录（维保/保险/运营）"
         variant="borderless"
-        extra={<Button type="primary" icon={<PlusOutlined />} onClick={handleAdd}>新增成本记录</Button>}
+        extra={hasPermission('finance:cost:add') && <Button type="primary" icon={<PlusOutlined />} onClick={handleAdd}>新增成本记录</Button>}
       >
         <Row gutter={12} style={{ marginBottom: 16 }}>
           <Col><Input.Search placeholder="明细关键字" allowClear value={keyword} onChange={(e) => setKeyword(e.target.value)} onSearch={() => setPagination({ ...pagination, page: 1 })} style={{ width: 200 }} /></Col>

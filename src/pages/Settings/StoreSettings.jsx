@@ -7,6 +7,7 @@ import {
   getStoreListApi, addStoreApi, updateStoreApi, deleteStoreApi, toggleStoreStatusApi,
 } from '@/api/modules/storeConfig';
 import { formatTime } from '@/utils/formatTime';
+import useAuthStore from '@/store/useAuthStore';
 
 const { Text } = Typography;
 
@@ -27,6 +28,10 @@ const StoreSettings = () => {
   const [storeModalMode, setStoreModalMode] = useState('add');
   const [storeEditing, setStoreEditing] = useState(null);
   const [storeForm] = Form.useForm();
+  const { hasPermission } = useAuthStore();
+  const canStoreUpdate = hasPermission('settings:store:update');
+  const canStoreStatus = hasPermission('settings:store:status');
+  const canStoreDelete = hasPermission('settings:store:delete');
 
   // ===== 城市数据加载 =====
   const fetchCities = useCallback(async () => {
@@ -180,25 +185,31 @@ const StoreSettings = () => {
             onClick={() => setSelectedCityId(record.id)}
             style={selectedCityId === record.id ? { color: '#1677ff', fontWeight: 600 } : {}}
           >查看门店</Button>
-          <Button type="link" size="small" icon={<EditOutlined />}
-            onClick={() => openCityEdit(record)}>编辑</Button>
-          <Button type="link" size="small"
-            onClick={() => handleCityStatusToggle(record)}
-            style={{ color: record.status === 1 ? '#faad14' : '#52c41a' }}
-          >{record.status === 1 ? '禁用' : '启用'}</Button>
-          <Popconfirm
-            title="删除城市"
-            description="删除城市将同时删除该城市下所有门店，确认删除？"
-            onConfirm={() => handleCityDelete(record.id)}
-            okText="确认" cancelText="取消"
-            okButtonProps={{ danger: true }}
-          >
-            <Button type="link" size="small" danger icon={<DeleteOutlined />}>删除</Button>
-          </Popconfirm>
+          {canStoreUpdate && (
+            <Button type="link" size="small" icon={<EditOutlined />}
+              onClick={() => openCityEdit(record)}>编辑</Button>
+          )}
+          {canStoreStatus && (
+            <Button type="link" size="small"
+              onClick={() => handleCityStatusToggle(record)}
+              style={{ color: record.status === 1 ? '#faad14' : '#52c41a' }}
+            >{record.status === 1 ? '禁用' : '启用'}</Button>
+          )}
+          {canStoreDelete && (
+            <Popconfirm
+              title="删除城市"
+              description="删除城市将同时删除该城市下所有门店，确认删除？"
+              onConfirm={() => handleCityDelete(record.id)}
+              okText="确认" cancelText="取消"
+              okButtonProps={{ danger: true }}
+            >
+              <Button type="link" size="small" danger icon={<DeleteOutlined />}>删除</Button>
+            </Popconfirm>
+          )}
         </Space>
       ),
     },
-  ], [selectedCityId, cityList]);
+  ], [selectedCityId, cityList, canStoreUpdate, canStoreStatus, canStoreDelete]);
 
   // ===== 门店表格列 =====
   const storeColumns = useMemo(() => [
@@ -216,28 +227,34 @@ const StoreSettings = () => {
       title: '状态', dataIndex: 'status', key: 'status', width: 80, align: 'center',
       render: (v) => <Tag color={v === 1 ? 'green' : 'default'}>{v === 1 ? '启用' : '禁用'}</Tag>,
     },
-    {
+    ...(canStoreUpdate || canStoreStatus || canStoreDelete ? [{
       title: '操作', key: 'action', width: 160, fixed: 'right',
       render: (_, record) => (
         <Space size="small">
-          <Button type="link" size="small" icon={<EditOutlined />}
-            onClick={() => openStoreEdit(record)}>编辑</Button>
-          <Button type="link" size="small"
-            onClick={() => handleStoreStatusToggle(record)}
-            style={{ color: record.status === 1 ? '#faad14' : '#52c41a' }}
-          >{record.status === 1 ? '禁用' : '启用'}</Button>
-          <Popconfirm
-            title="确认删除该门店？"
-            onConfirm={() => handleStoreDelete(record.id)}
-            okText="确认" cancelText="取消"
-            okButtonProps={{ danger: true }}
-          >
-            <Button type="link" size="small" danger icon={<DeleteOutlined />}>删除</Button>
-          </Popconfirm>
+          {canStoreUpdate && (
+            <Button type="link" size="small" icon={<EditOutlined />}
+              onClick={() => openStoreEdit(record)}>编辑</Button>
+          )}
+          {canStoreStatus && (
+            <Button type="link" size="small"
+              onClick={() => handleStoreStatusToggle(record)}
+              style={{ color: record.status === 1 ? '#faad14' : '#52c41a' }}
+            >{record.status === 1 ? '禁用' : '启用'}</Button>
+          )}
+          {canStoreDelete && (
+            <Popconfirm
+              title="确认删除该门店？"
+              onConfirm={() => handleStoreDelete(record.id)}
+              okText="确认" cancelText="取消"
+              okButtonProps={{ danger: true }}
+            >
+              <Button type="link" size="small" danger icon={<DeleteOutlined />}>删除</Button>
+            </Popconfirm>
+          )}
         </Space>
       ),
-    },
-  ], []);
+    }] : []),
+  ], [canStoreUpdate, canStoreStatus, canStoreDelete]);
 
   const selectedCity = cityList.find((c) => c.id === selectedCityId);
 
@@ -248,7 +265,7 @@ const StoreSettings = () => {
         <Col xs={24} lg={10}>
           <Card
             title={<span><ShopOutlined style={{ marginRight: 8 }} />城市列表</span>}
-            extra={<Button type="primary" icon={<PlusOutlined />} onClick={openCityAdd}>新增城市</Button>}
+            extra={hasPermission('settings:store:add') && <Button type="primary" icon={<PlusOutlined />} onClick={openCityAdd}>新增城市</Button>}
             styles={{ body: { padding: 0 } }}
           >
             <Table
@@ -279,9 +296,11 @@ const StoreSettings = () => {
               </span>
             }
             extra={
-              <Button type="primary" icon={<PlusOutlined />} onClick={openStoreAdd} disabled={!selectedCityId}>
-                新增门店
-              </Button>
+              hasPermission('settings:store:add') && (
+                <Button type="primary" icon={<PlusOutlined />} onClick={openStoreAdd} disabled={!selectedCityId}>
+                  新增门店
+                </Button>
+              )
             }
             styles={{ body: { padding: 0 } }}
           >

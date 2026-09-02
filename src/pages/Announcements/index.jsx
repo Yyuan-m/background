@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useMemo } from 'react';
 import { Table, Button, Tag, Modal, Form, Input, Select, Popconfirm, Card, Space } from 'antd';
 import { message } from '@/utils/antdStatic';
 import { PlusOutlined, DeleteOutlined, EditOutlined } from '@ant-design/icons';
@@ -7,6 +7,7 @@ import { t } from '@/i18n';
 import { formatTime } from '@/utils/formatTime';
 import DictSelect from '@/components/DictSelect';
 import { useDict } from '@/hooks/useDict';
+import useAuthStore from '@/store/useAuthStore';
 
 const { Option } = Select;
 
@@ -24,6 +25,9 @@ const Announcements = () => {
   const [submitLoading, setSubmitLoading] = useState(false);
 
   const { map: priorityMap } = useDict('announcement_priority');
+  const { hasPermission } = useAuthStore();
+  const canAnnUpdate = hasPermission('settings:announcements:update');
+  const canAnnDelete = hasPermission('settings:announcements:delete');
 
   const fetchData = useCallback(async () => {
     setLoading(true);
@@ -90,7 +94,7 @@ const Announcements = () => {
     }
   };
 
-  const columns = [
+  const columns = useMemo(() => [
     { title: 'ID', dataIndex: 'id', key: 'id', width: 60 },
     { title: '标题', dataIndex: 'title', key: 'title', width: 300, ellipsis: true },
     { title: '内容', dataIndex: 'content', key: 'content', ellipsis: true },
@@ -109,27 +113,29 @@ const Announcements = () => {
       render: (v) => v ? <Tag color="green">发布</Tag> : <Tag color="default">下线</Tag>,
     },
     { title: '发布时间', dataIndex: 'createdAt', key: 'createdAt', width: 160, render: formatTime.render },
-    {
+    ...(canAnnUpdate || canAnnDelete ? [{
       title: '操作',
       key: 'action',
       width: 180,
       render: (_, record) => (
         <Space size={0}>
-          <Button type="link" size="small" icon={<EditOutlined />} onClick={() => handleEdit(record)}>编辑</Button>
-          <Popconfirm title="确定删除该公告？" onConfirm={() => handleDelete(record.id)}>
-            <Button type="link" size="small" danger icon={<DeleteOutlined />}>删除</Button>
-          </Popconfirm>
+          {canAnnUpdate && <Button type="link" size="small" icon={<EditOutlined />} onClick={() => handleEdit(record)}>编辑</Button>}
+          {canAnnDelete && (
+            <Popconfirm title="确定删除该公告？" onConfirm={() => handleDelete(record.id)}>
+              <Button type="link" size="small" danger icon={<DeleteOutlined />}>删除</Button>
+            </Popconfirm>
+          )}
         </Space>
       ),
-    },
-  ];
+    }] : []),
+  ], [priorityMap, canAnnUpdate, canAnnDelete, handleEdit, handleDelete]);
 
   return (
     <div className="page-container">
       <h2 className="page-title">{t('pageTitle.announcements')}</h2>
       <Card variant="borderless">
         <div style={{ marginBottom: 16 }}>
-          <Button type="primary" icon={<PlusOutlined />} onClick={handleAdd}>发布公告</Button>
+          {hasPermission('settings:announcements:add') && <Button type="primary" icon={<PlusOutlined />} onClick={handleAdd}>发布公告</Button>}
         </div>
         <div>
         <Table

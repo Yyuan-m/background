@@ -8,6 +8,7 @@ import { formatTime } from '@/utils/formatTime';
 import dayjs from 'dayjs';
 import DictSelect from '@/components/DictSelect';
 import { useDict } from '@/hooks/useDict';
+import useAuthStore from '@/store/useAuthStore';
 
 const statusColorMap = { issued: 'green', pending: 'orange' };
 
@@ -23,6 +24,10 @@ const InvoiceTab = () => {
   const [form] = Form.useForm();
 
   const { map: invoiceStatusMap } = useDict('invoice_status');
+  const { hasPermission } = useAuthStore();
+  const canInvoiceUpdate = hasPermission('finance:invoice:update');
+  const canInvoiceStatus = hasPermission('finance:invoice:status');
+  const canInvoiceDelete = hasPermission('finance:invoice:delete');
 
   const fetchData = useCallback(async () => {
     setLoading(true);
@@ -92,19 +97,22 @@ const InvoiceTab = () => {
     { title: '税号', dataIndex: 'taxNo', key: 'taxNo', width: 160, ellipsis: true, render: (v) => v || '-' },
     { title: '状态', dataIndex: 'status', key: 'status', width: 90, render: (v) => <Tag color={statusColorMap[v] || 'default'}>{invoiceStatusMap[v]?.label || v}</Tag> },
     { title: '开票日期', dataIndex: 'issueDate', key: 'issueDate', width: 110, render: formatTime.render },
-    { title: '操作', key: 'action', width: 220, fixed: 'right',
+    ...(canInvoiceUpdate || canInvoiceStatus || canInvoiceDelete ? [{
+      title: '操作', key: 'action', width: 220, fixed: 'right',
       render: (_, record) => (
         <Space>
-          <Button type="link" size="small" icon={<EditOutlined />} onClick={() => handleEdit(record)}>编辑</Button>
-          {record.status === 'pending' && <Button type="link" size="small" onClick={() => handleToggleStatus(record.id, 'issued')}>开具</Button>}
-          {record.status === 'issued' && <Button type="link" size="small" onClick={() => handleToggleStatus(record.id, 'pending')}>撤销</Button>}
-          <Popconfirm title="确定删除？" onConfirm={() => handleDelete(record.id)}>
-            <Button type="link" size="small" danger icon={<DeleteOutlined />}>删除</Button>
-          </Popconfirm>
+          {canInvoiceUpdate && <Button type="link" size="small" icon={<EditOutlined />} onClick={() => handleEdit(record)}>编辑</Button>}
+          {canInvoiceStatus && record.status === 'pending' && <Button type="link" size="small" onClick={() => handleToggleStatus(record.id, 'issued')}>开具</Button>}
+          {canInvoiceStatus && record.status === 'issued' && <Button type="link" size="small" onClick={() => handleToggleStatus(record.id, 'pending')}>撤销</Button>}
+          {canInvoiceDelete && (
+            <Popconfirm title="确定删除？" onConfirm={() => handleDelete(record.id)}>
+              <Button type="link" size="small" danger icon={<DeleteOutlined />}>删除</Button>
+            </Popconfirm>
+          )}
         </Space>
       ),
-    },
-  ], [invoiceStatusMap]);
+    }] : []),
+  ], [invoiceStatusMap, canInvoiceUpdate, canInvoiceStatus, canInvoiceDelete]);
 
   return (
     <Card variant="borderless">
@@ -114,7 +122,7 @@ const InvoiceTab = () => {
           <DictSelect dictType="invoice_status" placeholder="状态筛选" allowClear value={filterStatus} onChange={(v) => { setFilterStatus(v); setPagination({ ...pagination, page: 1 }); }} style={{ width: 140 }} />
         </Col>
         <Col flex="auto" style={{ textAlign: 'right' }}>
-          <Button type="primary" icon={<PlusOutlined />} onClick={handleAdd}>新增发票</Button>
+          {hasPermission('finance:invoice:add') && <Button type="primary" icon={<PlusOutlined />} onClick={handleAdd}>新增发票</Button>}
         </Col>
       </Row>
       <Table columns={columns} dataSource={data} rowKey="id" loading={loading} scroll={{ x: 1300 }}

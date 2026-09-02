@@ -1,5 +1,5 @@
 import { create } from 'zustand';
-import { getMenuListApi } from '@/api/modules/menu';
+import { getUserMenusApi } from '@/api/modules/menu';
 import { STORAGE_KEYS } from '@/constants';
 
 const TABS_STORAGE_KEY = STORAGE_KEYS.TABS;
@@ -33,13 +33,14 @@ const loadSidebarCollapsed = () => {
 
 const savedTabs = loadTabs();
 
-// 将扁平菜单列表转换为侧边栏 Menu 组件格式
+// 将扁平菜单列表转换为侧边栏 Menu 组件格式（type='button' 的按钮权限行不参与渲染）
 const buildSidebarMenu = (list) => {
   if (!list || list.length === 0) return [];
-  const topLevel = list.filter((m) => !m.parentId && m.status === 1);
+  const menus = list.filter((m) => m.type !== 'button');
+  const topLevel = menus.filter((m) => !m.parentId && m.status === 1);
   const sorted = topLevel.sort((a, b) => a.sort - b.sort);
   return sorted.map((item) => {
-    const children = list.filter(
+    const children = menus.filter(
       (m) => m.parentId === item.id && m.status === 1,
     ).sort((a, b) => a.sort - b.sort);
     const result = {
@@ -116,11 +117,11 @@ const useAppStore = create((set, get) => ({
   menuTree: [],
   menuLoading: false,
 
-  // 从后端加载菜单树
+  // 从后端加载当前用户可见的菜单树（后端已按权限过滤）
   loadMenuTree: async () => {
     set({ menuLoading: true });
     try {
-      const data = await getMenuListApi();
+      const data = await getUserMenusApi();
       const tree = buildSidebarMenu(data);
       set({ menuTree: tree });
     } catch {
@@ -130,22 +131,40 @@ const useAppStore = create((set, get) => ({
     }
   },
 
-  // 刷新菜单树
+  // 静默刷新菜单树：不置 menuLoading、内容无变化时不替换数组引用，
+  // 避免侧边栏出现 Spin 闪烁/菜单重新挂载（供权限轮询调用，用户无感知）
   refreshMenuTree: async () => {
-    set({ menuLoading: true });
     try {
-      const data = await getMenuListApi();
+      const data = await getUserMenusApi();
       const tree = buildSidebarMenu(data);
-      set({ menuTree: tree });
-    } catch { /* ignore */ } finally {
-      set({ menuLoading: false });
-    }
+      const { menuTree: current } = get();
+      // 深比较：结构一致则不更新 state，避免无意义的重渲染
+      if (JSON.stringify(current) !== JSON.stringify(tree)) {
+        set({ menuTree: tree });
+      }
+    } catch { /* ignore */ }
   },
 
-  // 使用已有扁平菜单列表直接更新侧边栏菜单树（避免重复请求被去重机制取消）
+  // 切换账号/登出时重置用户相关状态：清空标签页（含 localStorage）和菜单树，
+  // 避免下一个账号残留上个账号的多标签页与菜单数据
+  resetUserState: () => {
+    saveTabs([]);
+    set({
+      tabs: [],
+      activeTab: null,
+      menuTree: [],
+      breadcrumb: [],
+    });
+  },
+
+  // 使用已有扁平菜单列表直接更新侧边栏菜单树（避免重复请求被去重机制取消）；
+  // 静默更新：结构无变化时不替换引用，避免侧边栏闪烁
   setMenuTreeFromList: (list) => {
     const tree = buildSidebarMenu(list);
-    set({ menuTree: tree });
+    const { menuTree: current } = get();
+    if (JSON.stringify(current) !== JSON.stringify(tree)) {
+      set({ menuTree: tree });
+    }
   },
 }));
 

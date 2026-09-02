@@ -3,6 +3,12 @@
  */
 import { get, post, put, del } from '@/api/request';
 
+/**
+ * 当前登录用户可见的菜单列表（侧边栏渲染数据源）。
+ * 后端按用户权限过滤，仅需登录即可访问，避免无 settings 权限的角色 403。
+ */
+export const getUserMenusApi = () => get('/api/system/menu/user-menus');
+
 /** 获取菜单树 */
 export const getMenuTreeApi = () => get('/api/system/menu/tree');
 

@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useMemo } from 'react';
 
 import {
   Card, Table, Button, Input, Select, Space, Tag, Modal, Form,
@@ -17,6 +17,7 @@ import {
 } from '@/api/modules/system';
 import { t } from '@/i18n';
 import { formatTime } from '@/utils/formatTime';
+import useAuthStore from '@/store/useAuthStore';
 
 const UserManagement = () => {
   const [loading, setLoading] = useState(false);
@@ -45,6 +46,12 @@ const UserManagement = () => {
 
   // 二次密码确认
   const [confirmPwdStatus, setConfirmPwdStatus] = useState('');
+
+  const { hasPermission } = useAuthStore();
+  const canUserUpdate = hasPermission('settings:user:update');
+  const canUserResetPwd = hasPermission('settings:user:reset-password');
+  const canUserStatus = hasPermission('settings:user:status');
+  const canUserDelete = hasPermission('settings:user:delete');
 
   const fetchData = useCallback(async (page = 1, pageSize = 10) => {
     setLoading(true);
@@ -268,7 +275,7 @@ const UserManagement = () => {
     }),
   };
 
-  const columns = [
+  const columns = useMemo(() => [
     { title: '用户名', dataIndex: 'username', key: 'username', width: 130 },
     { title: '昵称', dataIndex: 'nickname', key: 'nickname', width: 130, render: (text, record) => text || record.name },
     {
@@ -304,51 +311,59 @@ const UserManagement = () => {
       render: (text) => formatTime.datetime(text),
     },
     { title: '创建时间', dataIndex: 'createdAt', key: 'createdAt', width: 170, render: formatTime.render },
-    {
+    ...(canUserUpdate || canUserResetPwd || canUserStatus || canUserDelete ? [{
       title: '操作',
       key: 'action',
       width: 300,
       fixed: 'right',
       render: (_, record) => (
         <Space size="small">
-          <Button type="link" size="small" icon={<EditOutlined />} onClick={() => handleEdit(record)}>
-            编辑
-          </Button>
-          <Button type="link" size="small" icon={<LockOutlined />} onClick={() => handleResetPwd(record)}>
-            重置密码
-          </Button>
-          <Popconfirm
-            title={record.status === 1 ? '确定要禁用该账号吗？禁用后无法登录' : '确定要启用该账号吗？'}
-            onConfirm={() => handleToggleStatus(record)}
-            okText="确定"
-            cancelText="取消"
-            disabled={isSuperAdmin(record)}
-          >
-            <Button
-              type="link"
-              size="small"
+          {canUserUpdate && (
+            <Button type="link" size="small" icon={<EditOutlined />} onClick={() => handleEdit(record)}>
+              编辑
+            </Button>
+          )}
+          {canUserResetPwd && (
+            <Button type="link" size="small" icon={<LockOutlined />} onClick={() => handleResetPwd(record)}>
+              重置密码
+            </Button>
+          )}
+          {canUserStatus && (
+            <Popconfirm
+              title={record.status === 1 ? '确定要禁用该账号吗？禁用后无法登录' : '确定要启用该账号吗？'}
+              onConfirm={() => handleToggleStatus(record)}
+              okText="确定"
+              cancelText="取消"
               disabled={isSuperAdmin(record)}
-              icon={record.status === 1 ? <StopOutlined /> : <CheckCircleOutlined />}
-              style={{ color: isSuperAdmin(record) ? undefined : (record.status === 1 ? 'var(--warning-color)' : 'var(--success-color)') }}
             >
-              {record.status === 1 ? '禁用' : '启用'}
-            </Button>
-          </Popconfirm>
-          <Popconfirm
-            title="确定要删除该用户吗？"
-            onConfirm={() => handleDelete(record)}
-            okText="确定"
-            cancelText="取消"
-            disabled={isSuperAdmin(record)}
-          >
-            <Button type="link" size="small" danger icon={<DeleteOutlined />} disabled={isSuperAdmin(record)}>
-              删除
-            </Button>
-          </Popconfirm>
+              <Button
+                type="link"
+                size="small"
+                disabled={isSuperAdmin(record)}
+                icon={record.status === 1 ? <StopOutlined /> : <CheckCircleOutlined />}
+                style={{ color: isSuperAdmin(record) ? undefined : (record.status === 1 ? 'var(--warning-color)' : 'var(--success-color)') }}
+              >
+                {record.status === 1 ? '禁用' : '启用'}
+              </Button>
+            </Popconfirm>
+          )}
+          {canUserDelete && (
+            <Popconfirm
+              title="确定要删除该用户吗？"
+              onConfirm={() => handleDelete(record)}
+              okText="确定"
+              cancelText="取消"
+              disabled={isSuperAdmin(record)}
+            >
+              <Button type="link" size="small" danger icon={<DeleteOutlined />} disabled={isSuperAdmin(record)}>
+                删除
+              </Button>
+            </Popconfirm>
+          )}
         </Space>
       ),
-    },
-  ];
+    }] : []),
+  ], [roleOptions, isSuperAdmin, handleEdit, handleResetPwd, handleToggleStatus, handleDelete, canUserUpdate, canUserResetPwd, canUserStatus, canUserDelete]);
 
   return (
     <div className="page-container">
@@ -407,31 +422,39 @@ const UserManagement = () => {
           </Col>
           <Col flex="auto" style={{ textAlign: 'right' }}>
             <Space>
-              <Button
-                icon={<CheckCircleOutlined />}
-                onClick={handleBatchEnable}
-                disabled={selectedRowKeys.length === 0}
-              >
-                批量启用
-              </Button>
-              <Button
-                icon={<StopOutlined />}
-                onClick={handleBatchDisable}
-                disabled={selectedRowKeys.length === 0}
-              >
-                批量禁用
-              </Button>
-              <Button
-                danger
-                icon={<DeleteOutlined />}
-                onClick={handleBatchDelete}
-                disabled={selectedRowKeys.length === 0}
-              >
-                批量删除
-              </Button>
-              <Button type="primary" icon={<PlusOutlined />} onClick={handleAdd}>
-                新增用户
-              </Button>
+              {hasPermission('settings:user:status') && (
+                <Button
+                  icon={<CheckCircleOutlined />}
+                  onClick={handleBatchEnable}
+                  disabled={selectedRowKeys.length === 0}
+                >
+                  批量启用
+                </Button>
+              )}
+              {hasPermission('settings:user:status') && (
+                <Button
+                  icon={<StopOutlined />}
+                  onClick={handleBatchDisable}
+                  disabled={selectedRowKeys.length === 0}
+                >
+                  批量禁用
+                </Button>
+              )}
+              {hasPermission('settings:user:delete') && (
+                <Button
+                  danger
+                  icon={<DeleteOutlined />}
+                  onClick={handleBatchDelete}
+                  disabled={selectedRowKeys.length === 0}
+                >
+                  批量删除
+                </Button>
+              )}
+              {hasPermission('settings:user:add') && (
+                <Button type="primary" icon={<PlusOutlined />} onClick={handleAdd}>
+                  新增用户
+                </Button>
+              )}
             </Space>
           </Col>
         </Row>

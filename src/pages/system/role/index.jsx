@@ -14,6 +14,7 @@ import {
 } from '@/api/modules/system';
 import { t } from '@/i18n';
 import { formatTime } from '@/utils/formatTime';
+import useAuthStore from '@/store/useAuthStore';
 
 const RoleManagement = () => {
   const [loading, setLoading] = useState(false);
@@ -38,6 +39,12 @@ const RoleManagement = () => {
   // 权限树搜索 / 展开控制
   const [searchKeyword, setSearchKeyword] = useState('');
   const [expandedKeys, setExpandedKeys] = useState([]);
+
+  const { hasPermission } = useAuthStore();
+  const canRoleUpdate = hasPermission('settings:role:update');
+  const canRolePermission = hasPermission('settings:role:permission');
+  const canRoleStatus = hasPermission('settings:role:status');
+  const canRoleDelete = hasPermission('settings:role:delete');
 
   const fetchData = useCallback(async (page = 1, pageSize = 10) => {
     setLoading(true);
@@ -110,7 +117,7 @@ const RoleManagement = () => {
       message.success('角色删除成功');
       void fetchData(pagination.current, pagination.pageSize);
     } catch (e) {
-      message.error(e.message || '删除失败');
+      // request.js 已统一弹出错误提示，这里不再重复弹
     }
   };
 
@@ -191,7 +198,25 @@ const RoleManagement = () => {
       if (record.menuPermissions && record.menuPermissions.includes('*')) {
         setCheckedKeys(keys);
       } else {
-        setCheckedKeys(record.menuPermissions || []);
+        // 按层级展开：角色拥有父级权限（如 vehicle）时，antd Tree 级联显示其子节点为选中，
+        // 但 checkedKeys 数组中并不含子节点 key，直接保存会丢失子按钮权限。
+        // 这里在初始化时就把子节点 key 展开进勾选集合，保证「所见即所得」。
+        const owned = new Set(record.menuPermissions || []);
+        const expandKeys = (nodes) => {
+          nodes.forEach((node) => {
+            if (owned.has(node.key)) {
+              // 勾选父节点时级联勾选全部子孙
+              const collectDescendants = (n) => {
+                owned.add(n.key);
+                (n.children || []).forEach(collectDescendants);
+              };
+              collectDescendants(node);
+            }
+            if (node.children && node.children.length > 0) expandKeys(node.children);
+          });
+        };
+        expandKeys(tree);
+        setCheckedKeys(Array.from(owned));
       }
     } catch {
       message.error('获取权限树失败');
@@ -226,7 +251,24 @@ const RoleManagement = () => {
         setPermSubmitting(false);
         return;
       }
-      await saveRolePermissionsApi(permRole.id, checkedKeys);
+      // 保存时补全「部分勾选」的父级菜单：
+      // 勾选菜单会级联勾选其下按钮权限；取消某个按钮后菜单变为半选，
+      // 半选父菜单的 key 不在 checkedKeys 中，必须补回，否则会丢失整个菜单权限
+      const checkedSet = new Set(checkedKeys);
+      const saveSet = new Set(checkedKeys);
+      const walk = (nodes) => {
+        let any = false;
+        (nodes || []).forEach((n) => {
+          const childAny = n.children && n.children.length > 0 ? walk(n.children) : false;
+          if (childAny || checkedSet.has(n.key)) {
+            saveSet.add(n.key);
+            any = true;
+          }
+        });
+        return any;
+      };
+      walk(menuTree);
+      await saveRolePermissionsApi(permRole.id, Array.from(saveSet));
       message.success('权限保存成功，实时生效');
       setPermModalVisible(false);
       void fetchData(pagination.current, pagination.pageSize);
@@ -275,7 +317,7 @@ const RoleManagement = () => {
     void fetchData(pag.current, pag.pageSize);
   };
 
-  const columns = [
+  const columns = useMemo(() => [
     { title: '角色名称', dataIndex: 'name', key: 'name', width: 150 },
     {
       title: '角色标识',
@@ -302,49 +344,57 @@ const RoleManagement = () => {
       key: 'description',
       ellipsis: true,
     },
-    {
+    ...(canRoleUpdate || canRolePermission || canRoleStatus || canRoleDelete ? [{
       title: '操作',
       key: 'action',
       width: 320,
       render: (_, record) => (
         <Space size="small">
-          <Button type="link" size="small" icon={<EditOutlined />} onClick={() => handleEdit(record)}>
-            编辑
-          </Button>
-          <Button type="link" size="small" icon={<KeyOutlined />} onClick={() => handleAssignPerm(record)}>
-            分配权限
-          </Button>
-          <Popconfirm
-            title={record.status === 1 ? '确定要禁用该角色吗？' : '确定要启用该角色吗？'}
-            onConfirm={() => handleToggleStatus(record)}
-            okText="确定"
-            cancelText="取消"
-            disabled={record.roleKey === 'super_admin'}
-          >
-            <Button
-              type="link"
-              size="small"
+          {canRoleUpdate && (
+            <Button type="link" size="small" icon={<EditOutlined />} onClick={() => handleEdit(record)}>
+              编辑
+            </Button>
+          )}
+          {canRolePermission && (
+            <Button type="link" size="small" icon={<KeyOutlined />} onClick={() => handleAssignPerm(record)}>
+              分配权限
+            </Button>
+          )}
+          {canRoleStatus && (
+            <Popconfirm
+              title={record.status === 1 ? '确定要禁用该角色吗？' : '确定要启用该角色吗？'}
+              onConfirm={() => handleToggleStatus(record)}
+              okText="确定"
+              cancelText="取消"
               disabled={record.roleKey === 'super_admin'}
-              style={{ color: record.roleKey === 'super_admin' ? undefined : (record.status === 1 ? 'var(--warning-color)' : 'var(--success-color)') }}
             >
-              {record.status === 1 ? '禁用' : '启用'}
-            </Button>
-          </Popconfirm>
-          <Popconfirm
-            title="确定要删除该角色吗？"
-            onConfirm={() => handleDelete(record)}
-            okText="确定"
-            cancelText="取消"
-            disabled={record.roleKey === 'super_admin'}
-          >
-            <Button type="link" size="small" danger icon={<DeleteOutlined />} disabled={record.roleKey === 'super_admin'}>
-              删除
-            </Button>
-          </Popconfirm>
+              <Button
+                type="link"
+                size="small"
+                disabled={record.roleKey === 'super_admin'}
+                style={{ color: record.roleKey === 'super_admin' ? undefined : (record.status === 1 ? 'var(--warning-color)' : 'var(--success-color)') }}
+              >
+                {record.status === 1 ? '禁用' : '启用'}
+              </Button>
+            </Popconfirm>
+          )}
+          {canRoleDelete && (
+            <Popconfirm
+              title="确定要删除该角色吗？"
+              onConfirm={() => handleDelete(record)}
+              okText="确定"
+              cancelText="取消"
+              disabled={record.roleKey === 'super_admin'}
+            >
+              <Button type="link" size="small" danger icon={<DeleteOutlined />} disabled={record.roleKey === 'super_admin'}>
+                删除
+              </Button>
+            </Popconfirm>
+          )}
         </Space>
       ),
-    },
-  ];
+    }] : []),
+  ], [handleEdit, handleAssignPerm, handleToggleStatus, handleDelete, canRoleUpdate, canRolePermission, canRoleStatus, canRoleDelete]);
 
   return (
     <div className="page-container">
@@ -388,9 +438,11 @@ const RoleManagement = () => {
             </Space>
           </Col>
           <Col flex="auto" style={{ textAlign: 'right' }}>
-            <Button type="primary" icon={<PlusOutlined />} onClick={handleAdd}>
-              新增角色
-            </Button>
+            {hasPermission('settings:role:add') && (
+              <Button type="primary" icon={<PlusOutlined />} onClick={handleAdd}>
+                新增角色
+              </Button>
+            )}
           </Col>
         </Row>
       </Card>
@@ -493,6 +545,14 @@ const RoleManagement = () => {
               onCheck={handleCheck}
               treeData={displayTree}
               fieldNames={{ title: 'title', key: 'key', children: 'children' }}
+              titleRender={(node) => (
+                <span>
+                  {node.title}
+                  {node.type === 'button' && (
+                    <Tag color="orange" style={{ marginLeft: 8, marginRight: 0, fontSize: 11, lineHeight: '16px', padding: '0 4px' }}>[按钮]</Tag>
+                  )}
+                </span>
+              )}
             />
           ) : (
             <Empty image={Empty.PRESENTED_IMAGE_SIMPLE} description="未找到匹配的菜单" />

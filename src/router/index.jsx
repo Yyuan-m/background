@@ -2,6 +2,7 @@ import { createBrowserRouter, Navigate } from 'react-router-dom';
 import MainLayout from '@/layout/MainLayout';
 import AuthGuard from '@/router/AuthGuard';
 import GuestGuard from '@/router/GuestGuard';
+import HomeRedirect from '@/router/HomeRedirect';
 import routeConfigs from '@/router/routeConfig';
 
 /**
@@ -30,7 +31,8 @@ const router = createBrowserRouter([
     path: '/',
     element: <AuthGuard><MainLayout /></AuthGuard>,
     children: [
-      { index: true, element: <Navigate to="/dashboard" replace /> },
+      // 首页智能重定向：跳转到当前用户第一个有权限的菜单（避免无 dashboard 权限账号 403 循环）
+      { index: true, element: <HomeRedirect /> },
       ...authRoutes.map(({ path, component: Page }) => ({
         path: path.startsWith('/') ? path.slice(1) : path,
         element: <Page />,

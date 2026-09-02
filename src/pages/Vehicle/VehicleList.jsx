@@ -1,5 +1,5 @@
-import { useState, useEffect, useMemo, useCallback } from 'react';
-import { Table, Button, Space, Tag, Input, Select, Modal, Form, InputNumber, Popconfirm, Row, Col, Card, Tabs, Descriptions, Image, Divider } from 'antd';
+import { useState, useEffect, useMemo, useCallback, useRef } from 'react';
+import { Table, Button, Space, Tag, Input, Select, Modal, Form, InputNumber, Popconfirm, Row, Col, Card, Descriptions, Image, Divider } from 'antd';
 import { message } from '@/utils/antdStatic';
 import { PlusOutlined, SearchOutlined, ReloadOutlined, EditOutlined, DeleteOutlined, EyeOutlined, SettingOutlined, PictureOutlined } from '@ant-design/icons';
 import { getVehiclesApi, getVehicleDetailApi, addVehicleApi, updateVehicleApi, deleteVehicleApi, toggleVehicleStatusApi } from '@/api/modules/vehicle';
@@ -9,11 +9,6 @@ import { useDict } from '@/hooks/useDict';
 import useAuthStore from '@/store/useAuthStore';
 import { t } from '@/i18n';
 import { imageUrl } from '@/utils/imageUrl';
-import MaintenanceList from './MaintenanceList';
-import DocumentList from './DocumentList';
-import GpsTrack from './GpsTrack';
-import ViolationList from './ViolationList';
-import ImageGallery from './ImageGallery';
 
 const VEHICLE_TYPE_DICT = 'vehicle_type';
 const VEHICLE_STATUS_DICT = 'vehicle_status';
@@ -72,8 +67,11 @@ const groupMaterialsByCategory = (materials) => {
 };
 
 const VehicleList = () => {
-  const { hasButtonPermission } = useAuthStore();
+  const { hasPermission } = useAuthStore();
   const { map: statusMap } = useDict(VEHICLE_STATUS_DICT);
+
+  // 标记用户是否手动修改过“日成本价”：初始/回填 false，用户真实输入成本后为 true
+  const dailyCostTouched = useRef(false);
 
   const [data, setData] = useState([]);
   const [loading, setLoading] = useState(false);
@@ -83,8 +81,7 @@ const VehicleList = () => {
   const [keyword, setKeyword] = useState('');
   const [filterType, setFilterType] = useState('');
   const [filterStatus, setFilterStatus] = useState('');
-  const [activeTab, setActiveTab] = useState('list');
-
+  
   // 弹窗
   const [modalVisible, setModalVisible] = useState(false);
   const [modalTitle, setModalTitle] = useState('新增车辆');
@@ -117,6 +114,7 @@ const VehicleList = () => {
     setEditingId(null);
     setModalTitle('新增车辆');
     form.resetFields();
+    dailyCostTouched.current = false; // 重置“手动改过成本价”标记
     setVehicleImage('');
     // 新增时给配置字段默认值，避免提交时缺失字段
     form.setFieldsValue({
@@ -129,6 +127,7 @@ const VehicleList = () => {
   const handleEdit = async (record) => {
     setEditingId(record.id);
     setModalTitle('编辑车辆');
+    dailyCostTouched.current = false; // 重置“手动改过成本价”标记
     setVehicleImage(record.images || '');
     setModalVisible(true);
     // 列表行数据不含 carConfig，需调用详情接口获取完整数据
@@ -230,9 +229,9 @@ const VehicleList = () => {
       render: (_, record) => (
         <Space size="small">
           <Button type="link" size="small" icon={<EyeOutlined />} onClick={() => handleViewDetail(record)}>详情</Button>
-          {hasButtonPermission('vehicle', 'edit') && <Button type="link" size="small" icon={<EditOutlined />} onClick={() => handleEdit(record)}>编辑</Button>}
-          {hasButtonPermission('vehicle', 'edit') && <Button type="link" size="small" onClick={() => handleToggleStatus(record)}>{record.status === 'offline' ? '上架' : '下架'}</Button>}
-          {hasButtonPermission('vehicle', 'delete') && (
+          {hasPermission('vehicle:update') && <Button type="link" size="small" icon={<EditOutlined />} onClick={() => handleEdit(record)}>编辑</Button>}
+          {hasPermission('vehicle:status') && <Button type="link" size="small" onClick={() => handleToggleStatus(record)}>{record.status === 'offline' ? '上架' : '下架'}</Button>}
+          {hasPermission('vehicle:delete') && (
             <Popconfirm title="确定删除？" onConfirm={() => handleDelete(record.id)}>
               <Button type="link" size="small" danger icon={<DeleteOutlined />}>删除</Button>
             </Popconfirm>
@@ -240,12 +239,12 @@ const VehicleList = () => {
         </Space>
       ),
     },
-  ], [hasButtonPermission, statusMap, handleEdit, handleToggleStatus, handleDelete]);
+  ], [hasPermission, statusMap, handleEdit, handleToggleStatus, handleDelete]);
 
-  const tabItems = [
-    { key: 'list', label: '车辆列表', children: (
-      <>
-        <Card className="" variant="borderless">
+  return (
+    <div className="page-container">
+      <h2 className="page-title">{t('pageTitle.vehicles')}</h2>
+      <Card className="" variant="borderless">
           <Row gutter={[16, 16]} align="middle">
             <Col xs={24} sm={12} md={5}><Input placeholder="搜索名称/品牌/车牌" prefix={<SearchOutlined />} value={keyword} onChange={(e) => setKeyword(e.target.value)} onPressEnter={handleSearch} allowClear /></Col>
             <Col xs={24} sm={12} md={4}>
@@ -270,7 +269,7 @@ const VehicleList = () => {
           </Row>
         </Card>
         <Card className="" variant="borderless">
-          {hasButtonPermission('vehicle', 'add') && <div style={{ marginBottom: 16 }}><Button type="primary" icon={<PlusOutlined />} onClick={handleAdd}>新增车辆</Button></div>}
+          {hasPermission('vehicle:add') && <div style={{ marginBottom: 16 }}><Button type="primary" icon={<PlusOutlined />} onClick={handleAdd}>新增车辆</Button></div>}
           <div>
           <Table columns={columns} dataSource={data} rowKey="id" loading={loading} scroll={{ x: 'max-content' }}
             pagination={{
@@ -285,19 +284,6 @@ const VehicleList = () => {
           }} />
           </div>
         </Card>
-      </>
-    ) },
-    { key: 'maintenance', label: '维保记录', children: <MaintenanceList /> },
-    { key: 'documents', label: '证件管理', children: <DocumentList /> },
-    { key: 'gps', label: 'GPS轨迹', children: <GpsTrack /> },
-    { key: 'violations', label: '违章记录', children: <ViolationList /> },
-    { key: 'images', label: '素材管理', children: <ImageGallery /> },
-  ];
-
-  return (
-    <div className="page-container">
-      <h2 className="page-title">{t('pageTitle.vehicles')}</h2>
-      <Tabs activeKey={activeTab} onChange={setActiveTab} items={tabItems} style={{ background: 'transparent' }} />
 
       {/* 新增/编辑弹窗 */}
       <Modal title={modalTitle} open={modalVisible} onOk={handleSubmit} onCancel={() => setModalVisible(false)} confirmLoading={submitLoading} width={'60%'} destroyOnClose>
@@ -321,9 +307,8 @@ const VehicleList = () => {
             <Col span={6}>
               <Form.Item name="dailyPrice" label="日租价格(元)" rules={[{ required: true }]}>
                 <InputNumber min={0} style={{ width: '100%' }} onChange={(v) => {
-                  // 日租价格变动时，若用户未手动改过成本价，则自动 = 日租 × 0.54
-                  const cur = form.getFieldValue('dailyCost');
-                  if (v != null && (cur == null || cur === '')) {
+                  // 日租价格变动时：若用户未手动修改过成本价，则自动同步 = 日租 × 0.54
+                  if (v != null && !dailyCostTouched.current) {
                     form.setFieldsValue({ dailyCost: Math.round(v * 0.54 * 100) / 100 });
                   }
                 }} />
@@ -331,7 +316,8 @@ const VehicleList = () => {
             </Col>
             <Col span={6}>
               <Form.Item name="dailyCost" label="日成本价(元)" tooltip="默认=日租×0.54，可手动修改">
-                <InputNumber min={0} style={{ width: '100%' }} placeholder="自动计算" />
+                <InputNumber min={0} style={{ width: '100%' }} placeholder="自动计算"
+                  onChange={() => { dailyCostTouched.current = true; }} />
               </Form.Item>
             </Col>
             <Col span={6}>

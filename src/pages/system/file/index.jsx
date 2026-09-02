@@ -20,6 +20,7 @@ import {
 } from '@/api/modules/file';
 import { formatTime } from '@/utils/formatTime';
 import { imageUrl } from '@/utils/imageUrl';
+import useAuthStore from '@/store/useAuthStore';
 
 // 分类配置
 const CATEGORY_OPTIONS = [
@@ -109,6 +110,9 @@ const FileManagement = () => {
   // 统计
   const [stats, setStats] = useState({ image: 0, document: 0, video: 0, other: 0, total: 0 });
   const [statsLoading, setStatsLoading] = useState(false);
+  const { hasPermission } = useAuthStore();
+  const canFileDelete = hasPermission('system:file:delete');
+  const canFileRestore = hasPermission('system:file:restore');
 
   const fetchData = useCallback(async () => {
     setLoading(true);
@@ -360,26 +364,28 @@ const FileManagement = () => {
             <Tooltip title="复制链接">
               <Button type="link" size="small" icon={<CopyOutlined />} onClick={() => handleCopyUrl(record.url)} />
             </Tooltip>
-            {isDeleted && (
+            {canFileRestore && isDeleted && (
               <Popconfirm title="确认恢复此文件？" onConfirm={() => handleRestore(record.id)} okText="确认" cancelText="取消">
                 <Button type="link" size="small" icon={<UndoOutlined />}>恢复</Button>
               </Popconfirm>
             )}
-            <Popconfirm
-              title={isDeleted ? '彻底删除？此操作不可恢复！' : '移入回收站？'}
-              okText="确认" cancelText="取消"
-              okButtonProps={isDeleted ? { danger: true } : undefined}
-              onConfirm={() => handleDelete(record)}
-            >
-              <Button type="link" size="small" danger icon={isDeleted ? <DeleteFilled /> : <DeleteOutlined />}>
-                {isDeleted ? '彻底删除' : '删除'}
-              </Button>
-            </Popconfirm>
+            {canFileDelete && (
+              <Popconfirm
+                title={isDeleted ? '彻底删除？此操作不可恢复！' : '移入回收站？'}
+                okText="确认" cancelText="取消"
+                okButtonProps={isDeleted ? { danger: true } : undefined}
+                onConfirm={() => handleDelete(record)}
+              >
+                <Button type="link" size="small" danger icon={isDeleted ? <DeleteFilled /> : <DeleteOutlined />}>
+                  {isDeleted ? '彻底删除' : '删除'}
+                </Button>
+              </Popconfirm>
+            )}
           </Space>
         );
       },
     },
-  ], [data, pagination]);
+  ], [data, pagination, canFileDelete, canFileRestore]);
 
   const rowSelection = {
     selectedRowKeys,
@@ -479,7 +485,7 @@ const FileManagement = () => {
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16, flexWrap: 'wrap', gap: 8 }}>
           <Space wrap>
             <Button icon={<ReloadOutlined />} onClick={handleRefresh}>刷新</Button>
-            {hasSelection && filters.status === 1 && (
+            {hasSelection && filters.status === 1 && hasPermission('system:file:delete') && (
               <Popconfirm
                 title={`确认将选中的 ${selectedRowKeys.length} 个文件移入回收站？`}
                 onConfirm={handleBatchDelete}
@@ -492,25 +498,29 @@ const FileManagement = () => {
             )}
             {hasSelection && filters.status === 0 && (
               <>
-                <Popconfirm
-                  title={`确认恢复选中的 ${selectedRowKeys.length} 个文件？`}
-                  onConfirm={handleBatchRestore}
-                  okText="确认" cancelText="取消"
-                >
-                  <Button type="primary" icon={<UndoOutlined />}>
-                    批量恢复 ({selectedRowKeys.length})
-                  </Button>
-                </Popconfirm>
-                <Popconfirm
-                  title={`确认彻底删除选中的 ${selectedRowKeys.length} 个文件？此操作不可恢复！`}
-                  onConfirm={handleBatchDelete}
-                  okText="确认" cancelText="取消"
-                  okButtonProps={{ danger: true }}
-                >
-                  <Button danger icon={<DeleteFilled />}>
-                    批量彻底删除 ({selectedRowKeys.length})
-                  </Button>
-                </Popconfirm>
+                {hasPermission('system:file:restore') && (
+                  <Popconfirm
+                    title={`确认恢复选中的 ${selectedRowKeys.length} 个文件？`}
+                    onConfirm={handleBatchRestore}
+                    okText="确认" cancelText="取消"
+                  >
+                    <Button type="primary" icon={<UndoOutlined />}>
+                      批量恢复 ({selectedRowKeys.length})
+                    </Button>
+                  </Popconfirm>
+                )}
+                {hasPermission('system:file:delete') && (
+                  <Popconfirm
+                    title={`确认彻底删除选中的 ${selectedRowKeys.length} 个文件？此操作不可恢复！`}
+                    onConfirm={handleBatchDelete}
+                    okText="确认" cancelText="取消"
+                    okButtonProps={{ danger: true }}
+                  >
+                    <Button danger icon={<DeleteFilled />}>
+                      批量彻底删除 ({selectedRowKeys.length})
+                    </Button>
+                  </Popconfirm>
+                )}
               </>
             )}
           </Space>

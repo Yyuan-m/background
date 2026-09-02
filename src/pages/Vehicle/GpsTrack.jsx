@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useMemo } from 'react';
 import { Card, Table, Select, Row, Col, Button, Badge, Space, Modal, Form, Input, InputNumber, DatePicker, Popconfirm, Descriptions } from 'antd';
 import { PlusOutlined, SearchOutlined, ReloadOutlined, EditOutlined, DeleteOutlined, EyeOutlined } from '@ant-design/icons';
 import { message } from '@/utils/antdStatic';
@@ -8,12 +8,14 @@ import DictSelect from '@/components/DictSelect';
 import { useDict } from '@/hooks/useDict';
 import useVehicleOptions from '@/hooks/useVehicleOptions';
 import { formatTime } from '@/utils/formatTime';
+import useAuthStore from '@/store/useAuthStore';
 
 const GPS_STATUS_DICT = 'gps_status';
 
 const GpsTrack = () => {
   const { options: vehicleOptions } = useVehicleOptions();
   const { map: statusMap } = useDict(GPS_STATUS_DICT);
+  const { hasPermission } = useAuthStore();
   const [data, setData] = useState([]);
   const [loading, setLoading] = useState(false);
   const [pagination, setPagination] = useState({ page: 1, pageSize: 10 });
@@ -107,7 +109,7 @@ const GpsTrack = () => {
     } finally { setSubmitLoading(false); }
   };
 
-  const columns = [
+  const columns = useMemo(() => [
     { title: '车辆', dataIndex: 'vehicleName', key: 'vehicleName', width: 160 },
     {
       title: '状态', dataIndex: 'status', key: 'status', width: 100,
@@ -127,17 +129,20 @@ const GpsTrack = () => {
       render: (_, r) => (
         <Space size="small">
           <Button type="link" size="small" icon={<EyeOutlined />} onClick={() => handleDetail(r)}>详情</Button>
-          <Button type="link" size="small" icon={<EditOutlined />} onClick={() => handleEdit(r)}>编辑</Button>
-          <Popconfirm title="确认删除该GPS轨迹？" onConfirm={() => handleDelete(r.id)} okText="确认" cancelText="取消">
-            <Button type="link" size="small" danger icon={<DeleteOutlined />}>删除</Button>
-          </Popconfirm>
+          {hasPermission('vehicle:gps:update') && <Button type="link" size="small" icon={<EditOutlined />} onClick={() => handleEdit(r)}>编辑</Button>}
+          {hasPermission('vehicle:gps:delete') && (
+            <Popconfirm title="确认删除该GPS轨迹？" onConfirm={() => handleDelete(r.id)} okText="确认" cancelText="取消">
+              <Button type="link" size="small" danger icon={<DeleteOutlined />}>删除</Button>
+            </Popconfirm>
+          )}
         </Space>
       ),
     },
-  ];
+  ], [hasPermission, statusMap, handleDetail, handleEdit, handleDelete]);
 
   return (
-    <>
+    <div className="page-container">
+      <h2 className="page-title">GPS轨迹</h2>
       <Card variant="borderless">
         <Row gutter={[16, 16]} align="middle">
           <Col xs={24} sm={12} md={5}>
@@ -170,7 +175,7 @@ const GpsTrack = () => {
       </Card>
       <Card variant="borderless" style={{ marginTop: 16 }}>
         <div style={{ marginBottom: 16 }}>
-          <Button type="primary" icon={<PlusOutlined />} onClick={handleAdd}>新增GPS轨迹</Button>
+          {hasPermission('vehicle:gps:add') && <Button type="primary" icon={<PlusOutlined />} onClick={handleAdd}>新增GPS轨迹</Button>}
         </div>
         <Table
           columns={columns}
@@ -254,8 +259,9 @@ const GpsTrack = () => {
           </Descriptions>
         )}
       </Modal>
-    </>
+    </div>
   );
 };
 
+GpsTrack.routeConfig = { path: '/vehicles/gps', permission: 'vehicle:gps' };
 export default GpsTrack;

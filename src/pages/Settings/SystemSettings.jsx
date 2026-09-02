@@ -4,11 +4,13 @@ import { message } from '@/utils/antdStatic';
 import { SaveOutlined } from '@ant-design/icons';
 import { getSystemSettingsApi, updateSystemSettingsApi } from '@/api/modules/system';
 import { t } from '@/i18n';
+import useAuthStore from '@/store/useAuthStore';
 
 const SystemSettings = () => {
   const [loading, setLoading] = useState(true);
   const [submitting, setSubmitting] = useState(false);
   const [form] = Form.useForm();
+  const { hasPermission } = useAuthStore();
 
   const fetchSettings = useCallback(async () => {
     setLoading(true);
@@ -104,15 +106,17 @@ const SystemSettings = () => {
             </Form.Item>
 
             <Form.Item>
-              <Button
-                type="primary"
-                icon={<SaveOutlined />}
-                onClick={handleSubmit}
-                loading={submitting}
-                size="large"
-              >
-                保存设置
-              </Button>
+              {hasPermission('settings:system:update') && (
+                <Button
+                  type="primary"
+                  icon={<SaveOutlined />}
+                  onClick={handleSubmit}
+                  loading={submitting}
+                  size="large"
+                >
+                  保存设置
+                </Button>
+              )}
             </Form.Item>
           </Form>
         </Card>

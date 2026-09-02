@@ -15,6 +15,7 @@ const DEFAULT_CONTACT_INFO = {
 };
 
 import useAppStore from '@/store/useAppStore';
+import useAuthStore from '@/store/useAuthStore';
 import useThemeStore from '@/store/useThemeStore';
 import { startTokenAutoRefresh, stopTokenAutoRefresh } from '@/utils/tokenRefresh';
 import { t } from '@/i18n';
@@ -43,6 +44,12 @@ const breadcrumbMap = {
   '/settings/files': '文件管理',
   '/settings/logs': t('breadcrumb.logs'),
   '/settings/store': '门店配置',
+  // 车辆管理子菜单（原页面内 Tab 拆分为独立菜单）
+  '/vehicles/maintenance': '维保记录',
+  '/vehicles/documents': '证件管理',
+  '/vehicles/gps': 'GPS轨迹',
+  '/vehicles/violations': '违章记录',
+  '/vehicles/images': '素材管理',
 };
 
 const dynamicDetailMap = {
@@ -139,9 +146,35 @@ const MainLayout = () => {
     addTab({ key: path, label, closable: path !== '/dashboard' });
   }, [location.pathname]);
 
-  // 加载菜单树
+  // 加载菜单树 + 同步最新权限（后端角色/按钮权限变更实时生效，无需重新登录）
   useEffect(() => {
     loadMenuTree();
+    void useAuthStore.getState().refreshUser();
+  }, []);
+
+  // 权限实时同步：每 60s 拉取一次最新权限；窗口重新聚焦时也立即同步一次。
+  // 菜单在登录时加载一次保持固定，仅当权限集合发生变化时才静默重建菜单树，
+  // 后端在菜单/角色变更时已刷新 Redis 缓存，这里负责前端感知。
+  useEffect(() => {
+    const syncPermissions = async () => {
+      const before = useAuthStore.getState().permissions;
+      const user = await useAuthStore.getState().refreshUser();
+      if (!user) return;
+      const after = useAuthStore.getState().permissions;
+      const changed = before.length !== after.length
+        || after.some((p) => !before.includes(p));
+      // 权限变化时静默重建菜单树（不置 loading、无闪烁）
+      if (changed) {
+        void useAppStore.getState().refreshMenuTree();
+      }
+    };
+    const timer = window.setInterval(() => { void syncPermissions(); }, 60 * 1000);
+    const onFocus = () => { void syncPermissions(); };
+    window.addEventListener('focus', onFocus);
+    return () => {
+      window.clearInterval(timer);
+      window.removeEventListener('focus', onFocus);
+    };
   }, []);
 
   // 启动 token 无感刷新（主动定时刷新 + 多标签页同步）；卸载时停止

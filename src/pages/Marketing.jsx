@@ -8,7 +8,7 @@ import {
   PlusOutlined, GiftOutlined, CalendarOutlined,
   DeleteOutlined, EditOutlined, SendOutlined, DownCircleOutlined,
   CarOutlined, UnorderedListOutlined, ExclamationCircleOutlined,
-  ProfileOutlined,
+  ProfileOutlined, UserOutlined,
 } from '@ant-design/icons';
 import dayjs from 'dayjs';
 import { formatTime } from '@/utils/formatTime';
@@ -19,8 +19,10 @@ import {
   listUsedOrdersApi,
 } from '@/api/modules/coupon';
 import { getVehiclesApi } from '@/api/modules/vehicle';
+import { getCustomersApi } from '@/api/modules/customer';
 import DictSelect from '@/components/DictSelect';
 import { useDict } from '@/hooks/useDict';
+import useAuthStore from '@/store/useAuthStore';
 
 const { RangePicker } = DatePicker;
 
@@ -76,6 +78,7 @@ const typeUnit = (type) => {
 };
 
 const Marketing = () => {
+  const { hasPermission } = useAuthStore();
   // ---------- 优惠券状态 ----------
   const [couponData, setCouponData] = useState([]);
   const [couponModalVisible, setCouponModalVisible] = useState(false);
@@ -89,6 +92,8 @@ const Marketing = () => {
 
   // 关联车辆可选列表
   const [vehicleOptions, setVehicleOptions] = useState([]);
+  // 定向发放目标会员可选列表（C端会员，id 即 member.id）
+  const [memberOptions, setMemberOptions] = useState([]);
 
   // 领取记录
   const [receiveModalVisible, setReceiveModalVisible] = useState(false);
@@ -103,6 +108,7 @@ const Marketing = () => {
 
   // ---------- 字典 ----------
   const { map: couponTypeMap } = useDict('coupon_type');
+  const { map: memberLevelMap } = useDict('member_level');
 
   // 分页 ref：始终保存最新分页参数，避免 useCallback 闭包捕获过期值导致删除/投放后用旧 pageSize 查询
   const paginationRef = useRef(couponPagination);
@@ -147,13 +153,33 @@ const Marketing = () => {
     }
   }, []);
 
+  // 拉取 C 端会员列表（按指定用户发放的选择器用，id 即 member_coupon.member_id）
+  const fetchMemberOptions = useCallback(async () => {
+    try {
+      const res = await getCustomersApi({ page: 1, pageSize: 500 });
+      const list = res?.list || [];
+      setMemberOptions(list.map((m) => ({
+        label: `${m.name || m.nickname || m.username || ('会员' + m.id)}${m.phone ? `（${m.phone}）` : ''}`,
+        value: m.id,
+      })));
+    } catch (err) {
+      console.error('获取会员列表失败:', err);
+      setMemberOptions([]);
+    }
+  }, []);
+
   // 分页变化时重新查询（page/pageSize 任一变化即触发）
   useEffect(() => { fetchCouponData(); }, [fetchCouponData, couponPagination.page, couponPagination.pageSize]);
   useEffect(() => { fetchVehicleOptions(); }, [fetchVehicleOptions]);
+  useEffect(() => { fetchMemberOptions(); }, [fetchMemberOptions]);
 
   // 当前编辑的券类型/适用范围/已选车辆（用 useWatch 响应式监听，避免 render 阶段直接 getFieldValue）
   const currentType = Form.useWatch('type', couponForm);
   const currentScope = Form.useWatch('applyScope', couponForm);
+  const currentGrantType = Form.useWatch('grantType', couponForm);
+  const watchedTargetLevel = Form.useWatch('targetLevel', couponForm);
+  const watchedMemberIds = Form.useWatch('memberIds', couponForm);
+  const selectedMemberCount = Array.isArray(watchedMemberIds) ? watchedMemberIds.length : 0;
   const watchedCarIds = Form.useWatch('carIds', couponForm);
   const selectedCarCount = Array.isArray(watchedCarIds) ? watchedCarIds.length : 0;
 
@@ -175,6 +201,17 @@ const Marketing = () => {
           {couponTypeMap[v]?.label || record.typeName || v}
         </Tag>
       ),
+    },
+    {
+      title: '发放方式', dataIndex: 'grantType', key: 'grantType', width: 110, align: 'center',
+      render: (v, r) => {
+        if (v === 'level') {
+          const levelName = memberLevelMap[r.targetLevel]?.label || r.targetLevel || '会员等级';
+          return <Tag color="purple">定向-{levelName}</Tag>;
+        }
+        if (v === 'user') return <Tag color="magenta">定向-指定用户</Tag>;
+        return <Tag color="blue">全量投放</Tag>;
+      },
     },
     {
       title: '面值 / 门槛', key: 'value', width: 130,
@@ -199,11 +236,20 @@ const Marketing = () => {
     {
       title: '库存 / 领取 / 核销', key: 'count', width: 130,
       render: (_, r) => {
-        // 总库存：-1 表示无限库存
-        const total = r.totalCount === -1 ? '∞' : (r.totalCount ?? 0);
         const received = r.receivedCount ?? 0;
         const used = r.usedCount ?? 0;
-        // 库存剩余量 = 总库存 - 已领取数量（无限库存时显示 ∞）
+        // 定向-按指定用户：券直接发放到目标会员个人中心，无"库存/领取"概念，只展示已发放/已核销
+        if (r.grantType === 'user') {
+          return (
+            <div style={{ fontSize: 12, lineHeight: 1.6 }}>
+              <div>已发放：<span style={{ color: 'var(--text-secondary, #666)' }}>{received}</span> 张</div>
+              <div>已核销：<span style={{ color: 'var(--text-secondary, #666)' }}>{used}/{received}</span></div>
+            </div>
+          );
+        }
+        // 全量投放 与 定向-按会员等级（会员券需会员手动领取）：统一按"库存 / 领取 / 核销"展示
+        // 总库存（-1 无限），库存剩余 = 总量 - 已领
+        const total = r.totalCount === -1 ? '∞' : (r.totalCount ?? 0);
         const remaining = r.totalCount === -1 ? '∞' : Math.max(0, (r.totalCount ?? 0) - received);
         return (
           <div style={{ fontSize: 12, lineHeight: 1.6 }}>
@@ -268,13 +314,17 @@ const Marketing = () => {
         //   均对应数据库 status=published，需先下线才能编辑/删除
         const isPublishedLike = ['published', 'pending', 'sold_out', 'expired'].includes(record.status);
         const isDraftOrOffline = record.status === 'draft' || record.status === 'offline';
+        // 按指定用户发放的券：保存时已直接发放进用户账户，不支持再投放（后端同步拦截）
+        const isUserTargeted = record.grantType === 'user';
         return (
           <Space size={0} wrap>
-            <Button type="link" size="small" icon={<EditOutlined />} onClick={() => handleOpenCouponModal(record)}>编辑</Button>
-            {isDraftOrOffline && (
+            {hasPermission('marketing:coupon:update') && (
+              <Button type="link" size="small" icon={<EditOutlined />} onClick={() => handleOpenCouponModal(record)}>编辑</Button>
+            )}
+            {isDraftOrOffline && !isUserTargeted && hasPermission('marketing:coupon:update') && (
               <Popconfirm
                 title="确认投放该优惠券？"
-                description="投放后C端用户将可见并可领取，请二次确认。"
+                description="投放后C端用户将可见可领（按会员等级券仅对应等级会员可领）。"
                 icon={<ExclamationCircleOutlined style={{ color: '#faad14' }} />}
                 okText="确认投放"
                 okButtonProps={{ danger: true }}
@@ -284,7 +334,7 @@ const Marketing = () => {
                 <Button type="link" size="small" icon={<SendOutlined />} style={{ color: '#52c41a' }}>投放</Button>
               </Popconfirm>
             )}
-            {isPublishedLike && (
+            {isPublishedLike && hasPermission('marketing:coupon:update') && (
               <Popconfirm
                 title="确认下线该优惠券？"
                 description="下线后C端不可再领取，已领取的券不受影响。"
@@ -297,22 +347,24 @@ const Marketing = () => {
             )}
             <Button type="link" size="small" icon={<UnorderedListOutlined />} onClick={() => handleOpenReceiveModal(record)}>领取</Button>
             <Button type="link" size="small" icon={<ProfileOutlined />} onClick={() => handleOpenUsedOrdersModal(record)}>关联订单</Button>
-            <Popconfirm
-              title="确定删除该优惠券？"
-              description={isPublishedLike ? '已投放的优惠券不可删除，请先下线' : '删除后不可恢复'}
-              okText="删除"
-              okButtonProps={{ danger: true, disabled: isPublishedLike }}
-              cancelText="取消"
-              disabled={isPublishedLike}
-              onConfirm={() => handleDeleteCoupon(record.id)}
-            >
-              <Button type="link" size="small" danger icon={<DeleteOutlined />} disabled={isPublishedLike}>删除</Button>
-            </Popconfirm>
+            {hasPermission('marketing:coupon:delete') && (
+              <Popconfirm
+                title="确定删除该优惠券？"
+                description={isPublishedLike ? '已投放的优惠券不可删除，请先下线' : '删除后不可恢复'}
+                okText="删除"
+                okButtonProps={{ danger: true, disabled: isPublishedLike }}
+                cancelText="取消"
+                disabled={isPublishedLike}
+                onConfirm={() => handleDeleteCoupon(record.id)}
+              >
+                <Button type="link" size="small" danger icon={<DeleteOutlined />} disabled={isPublishedLike}>删除</Button>
+              </Popconfirm>
+            )}
           </Space>
         );
       },
     },
-  ]), [couponTypeMap]);
+  ]), [couponTypeMap, memberLevelMap, hasPermission]);
 
   // ---------- 优惠券 CRUD ----------
   const handleOpenCouponModal = async (record) => {
@@ -334,6 +386,8 @@ const Marketing = () => {
       couponForm.setFieldsValue({
         name: detail.name,
         type: detail.type,
+        grantType: detail.grantType || 'all',
+        targetLevel: detail.targetLevel,
         value: detail.value != null ? Number(detail.value) : undefined,
         minAmount: detail.minAmount != null ? Number(detail.minAmount) : undefined,
         discountCap: detail.discountCap != null ? Number(detail.discountCap) : undefined,
@@ -350,6 +404,7 @@ const Marketing = () => {
       couponForm.resetFields();
       couponForm.setFieldsValue({
         type: 'deduction',
+        grantType: 'all',
         applyScope: 'all',
         stackable: false,
         totalCount: 100,
@@ -362,10 +417,31 @@ const Marketing = () => {
   };
 
   const handleSaveCoupon = async () => {
+    // 进入即置为提交中，让“保存并发放”按钮立即进入 loading，避免误以为没反应
+    setCouponSaving(true);
     try {
       const values = await couponForm.validateFields();
-      setCouponSaving(true);
       const [validStartTime, validEndTime] = values.validTimeRange;
+      // 发放方式即派发对象类型：all 全量 / level 按等级 / user 按用户（三态已合一）
+      const grantType = values.grantType;
+      const memberIds = [];
+      if (grantType === 'user') {
+        const raw = Array.isArray(values.memberIds) ? values.memberIds : [];
+        const list = raw.map((v) => (typeof v === 'number' ? v : Number(v))).filter((v) => !Number.isNaN(v));
+        if (list.length === 0) {
+          message.warning('按指定用户发放必须选择至少一名目标会员');
+          return;
+        }
+        memberIds.push(...list);
+        // 按用户发放：发行总量需覆盖所选人数（-1 无限）
+        if (values.totalCount !== -1 && values.totalCount < list.length) {
+          message.warning(`发行总量（${values.totalCount}）不能少于所选会员人数（${list.length}）`);
+          return;
+        }
+      } else if (grantType === 'level' && !values.targetLevel) {
+        message.warning('按会员等级发放必须先选择目标等级');
+        return;
+      }
       // 关联车辆ID统一转为数字数组
       const rawCarIds = Array.isArray(values.carIds) ? values.carIds : [];
       const carIds = values.applyScope === 'specified'
@@ -373,13 +449,16 @@ const Marketing = () => {
         : [];
       if (values.applyScope === 'specified' && carIds.length === 0) {
         message.warning('指定车辆券必须关联至少一辆车');
-        setCouponSaving(false);
         return;
       }
       const payload = {
         name: values.name,
         type: values.type,
         typeName: couponTypeMap[values.type]?.label || values.type,
+        // grantType：all / level / user（用户与前端二级选择对齐）
+        grantType,
+        targetLevel: grantType === 'level' ? values.targetLevel : null,
+        memberIds,
         value: values.value,
         minAmount: values.minAmount ?? 0,
         discountCap: values.type === 'discount' ? values.discountCap : null,
@@ -396,14 +475,30 @@ const Marketing = () => {
         payload.id = couponEditing.id;
         payload.version = couponEditing.version;
         await updateCouponApi(payload);
+        message.success('优惠券修改成功');
       } else {
         await addCouponApi(payload);
+        // 成功提示区分发放方式：全量=草稿态待投放；按等级=草稿态待投放、会员可领；按用户=直接发放
+        if (grantType === 'user') {
+          message.success(`优惠券已保存，并直接发放给 ${memberIds.length} 名会员`);
+        } else if (grantType === 'level') {
+          message.success('优惠券已保存（草稿态），请在列表点击「投放」后该等级会员可在C端领取');
+        } else {
+          message.success('优惠券已保存（草稿态），请在列表点击「投放」并二次确认后C端才可见可领');
+        }
       }
       setCouponModalVisible(false);
       couponForm.resetFields();
       fetchCouponData();
     } catch (err) {
+      // 必须把失败暴露给用户，否则会表现为“点保存并发放没反应、也没报错、像卡住”
       console.error('保存优惠券失败:', err);
+      // 表单校验失败：request 层不会自动提示，需在此把具体原因弹给用户
+      const validationMsg = err?.errorFields?.[0]?.errors?.[0];
+      if (validationMsg) {
+        message.error(validationMsg);
+      }
+      // 网络/后端错误：request.js 响应拦截器已统一弹出错误提示，此处不重复提示
     } finally {
       setCouponSaving(false);
     }
@@ -511,9 +606,11 @@ const Marketing = () => {
         variant="borderless"
         style={{ marginBottom: 16 }}
         extra={
-          <Button type="primary" icon={<PlusOutlined />} onClick={() => handleOpenCouponModal(null)}>
-            新增优惠券
-          </Button>
+          hasPermission('marketing:coupon:add') ? (
+            <Button type="primary" icon={<PlusOutlined />} onClick={() => handleOpenCouponModal(null)}>
+              新增优惠券
+            </Button>
+          ) : null
         }
       >
         {/* 筛选 */}
@@ -570,7 +667,7 @@ const Marketing = () => {
           dataSource={couponData}
           rowKey="id"
           loading={couponLoading}
-          scroll={{ x: 1400 }}
+          scroll={{ x: 1490 }}
           onChange={(p) => setCouponPagination({ page: p.current, pageSize: p.pageSize })}
           pagination={{
             current: couponPagination.page,
@@ -590,7 +687,7 @@ const Marketing = () => {
         onOk={handleSaveCoupon}
         confirmLoading={couponSaving}
         onCancel={() => { setCouponModalVisible(false); couponForm.resetFields(); }}
-        okText="保存（草稿）"
+        okText={currentGrantType === 'user' ? '保存并发放' : '保存（草稿）'}
         cancelText="取消"
         width={680}
         destroyOnClose
@@ -607,6 +704,66 @@ const Marketing = () => {
           <Form.Item name="name" label="券名称" rules={[{ required: true, message: '请输入券名称' }]}>
             <Input placeholder="如：新人专享券" maxLength={20} disabled={isPublishedCoupon} />
           </Form.Item>
+
+          <Form.Item
+            name="grantType"
+            label="发放方式"
+            rules={[{ required: true, message: '请选择发放方式' }]}
+            extra={currentGrantType === 'all'
+              ? '全量投放：保存为草稿，需在列表点击「投放」并二次确认后，C端所有用户可见可领'
+              : currentGrantType === 'level'
+                ? '按会员等级：保存为草稿，投放后仅该等级会员可在C端手动领取；不直接发放到账户'
+                : '按指定用户：保存后直接发放到所选会员个人中心（来源记录为「后台发放」），无需领取，不支持再投放'}
+          >
+            <Radio.Group disabled={!!couponEditing || isPublishedCoupon} buttonStyle="solid">
+              <Radio.Button value="all">全量投放</Radio.Button>
+              <Radio.Button value="level">定向-按会员等级</Radio.Button>
+              <Radio.Button value="user">定向-按指定用户</Radio.Button>
+            </Radio.Group>
+          </Form.Item>
+
+          {currentGrantType === 'level' && (
+            <Form.Item
+              name="targetLevel"
+              label={<span><UserOutlined /> 目标会员等级（该等级会员可在C端领取）</span>}
+              rules={[{ required: true, message: '请选择目标会员等级' }]}
+              extra={`保存为草稿并投放后，仅「${memberLevelMap[watchedTargetLevel]?.label || '所选等级'}」等级会员可在C端手动领取，不直接发放到账户`}
+            >
+              <DictSelect
+                dictType="member_level"
+                placeholder="选择会员等级"
+                style={{ width: '100%' }}
+                disabled={!!couponEditing || isPublishedCoupon}
+              />
+            </Form.Item>
+          )}
+
+          {currentGrantType === 'user' && (
+            couponEditing ? (
+              <div style={{ marginBottom: 16, padding: '8px 12px', background: 'var(--bg-secondary, #f5f5f5)', borderRadius: 6, fontSize: 12, color: 'var(--text-secondary, #666)' }}>
+                该券为定向发放，保存时已发放到目标会员的个人中心（每人一张，来源「后台发放」），具体发放名单可在列表「领取」中查看
+              </div>
+            ) : (
+              <Form.Item
+                name="memberIds"
+                label={<span><UserOutlined /> 目标会员（可多选，每人发放一张）</span>}
+                rules={[{ required: true, message: '请选择目标会员' }]}
+                extra={`已选 ${selectedMemberCount} 名会员${selectedMemberCount > 0 ? `，保存后立即发放 ${selectedMemberCount} 张` : ''}`}
+              >
+                <Select
+                  mode="multiple"
+                  showSearch
+                  allowClear
+                  optionFilterProp="label"
+                  placeholder="选择目标会员（可多选，支持搜索姓名/手机号）"
+                  options={memberOptions}
+                  style={{ width: '100%' }}
+                  maxTagCount="responsive"
+                  notFoundContent={memberOptions.length === 0 ? '暂无会员数据' : '未匹配到会员'}
+                />
+              </Form.Item>
+            )
+          )}
 
           <Row gutter={16}>
             <Col span={12}>
@@ -656,7 +813,12 @@ const Marketing = () => {
               </Form.Item>
             </Col>
             <Col span={8}>
-              <Form.Item name="perUserLimit" label="每人限领" rules={[{ required: true, message: '请输入每人限领' }]}>
+              <Form.Item
+                name="perUserLimit"
+                label="每人限领"
+                rules={[{ required: true, message: '请输入每人限领' }]}
+                extra={currentGrantType === 'user' ? '按指定用户：每人固定发一张，此配置不生效' : ''}
+              >
                 <InputNumber min={1} max={100} style={{ width: '100%' }} placeholder="如：1" disabled={isPublishedCoupon} />
               </Form.Item>
             </Col>
@@ -675,7 +837,7 @@ const Marketing = () => {
             </Col>
             <Col span={12}>
               <Form.Item name="applyScope" label="适用范围" rules={[{ required: true, message: '请选择适用范围' }]}>
-                <Radio.Group disabled={isPublishedCoupon}>
+                <Radio.Group disabled={isPublishedCoupon} buttonStyle="solid">
                   <Radio.Button value="all">全场通用</Radio.Button>
                   <Radio.Button value="specified">指定车辆</Radio.Button>
                 </Radio.Group>
@@ -740,7 +902,11 @@ const Marketing = () => {
           </Form.Item>
 
           <div style={{ marginTop: 8, padding: '8px 12px', background: 'var(--bg-secondary, #f5f5f5)', borderRadius: 6, fontSize: 12, color: 'var(--text-secondary, #666)' }}>
-            新增/修改后默认为 <b>草稿</b> 态，需在列表点击 <b>投放</b> 并二次确认后C端才可见可领
+            {currentGrantType === 'user'
+              ? <span>按指定用户：点击「保存并发放」后券直接进入所选会员个人中心（来源记录为 <b>后台发放</b>），无需领取，每人一张</span>
+              : currentGrantType === 'level'
+                ? <span>按会员等级：新增后为 <b>草稿</b> 态，需在列表点击 <b>投放</b> 后，仅该等级会员可在C端手动领取；<b>不直接发放到账户</b></span>
+                : <span>全量投放：新增/修改后默认为 <b>草稿</b> 态，需在列表点击 <b>投放</b> 并二次确认后C端才可见可领</span>}
           </div>
         </Form>
       </Modal>
@@ -785,7 +951,12 @@ const Marketing = () => {
             },
             {
               title: '来源', dataIndex: 'source', key: 'source', width: 90,
-              render: (v) => v || '-',
+              render: (v) => {
+                // 渠道取值约定：manual=后台/手动发放，web=官网，miniprogram=小程序，h5=移动端H5
+                // 未命中的值原样展示（避免对未上报的数据造假）
+                const map = { manual: '后台发放', web: '官网', miniprogram: '小程序', h5: '移动端H5' };
+                return map[v] || v || '-';
+              },
             },
           ]}
         />
@@ -858,7 +1029,15 @@ const Marketing = () => {
               {
                 title: '状态', dataIndex: 'status', key: 'status', width: 80, align: 'center',
                 render: (v) => {
-                  const map = { completed: ['green', '已完成'], cancelled: ['red', '已取消'], pending: ['blue', '待付款'], active: ['orange', '进行中'] };
+                  // 状态颜色对齐订单管理（OrderList.statusColorMap）：pending/paid/renting/completed/cancelled/overdue
+                  const map = {
+                    pending: ['orange', '待支付'],
+                    paid: ['blue', '已支付'],
+                    renting: ['processing', '租赁中'],
+                    completed: ['green', '已完成'],
+                    cancelled: ['default', '已取消'],
+                    overdue: ['red', '已逾期'],
+                  };
                   const [color, text] = map[v] || ['default', v];
                   return <Tag color={color}>{text}</Tag>;
                 },

@@ -9,6 +9,7 @@ import { formatTime } from '@/utils/formatTime';
 import dayjs from 'dayjs';
 import DictSelect from '@/components/DictSelect';
 import { useDict } from '@/hooks/useDict';
+import useAuthStore from '@/store/useAuthStore';
 
 const statusColorMap = { checked: 'green', pending: 'orange' };
 
@@ -26,6 +27,11 @@ const ReconciliationTab = () => {
   const [form] = Form.useForm();
 
   const { map: reconciliationStatusMap } = useDict('reconciliation_status');
+  const { hasPermission } = useAuthStore();
+  const canRecAdd = hasPermission('finance:reconciliation:add');
+  const canRecUpdate = hasPermission('finance:reconciliation:update');
+  const canRecStatus = hasPermission('finance:reconciliation:status');
+  const canRecDelete = hasPermission('finance:reconciliation:delete');
 
   // 聚合数据：从 finance_record 按月自动汇总
   const fetchAggData = useCallback(async () => {
@@ -98,17 +104,18 @@ const ReconciliationTab = () => {
     { title: '净收入', dataIndex: 'netIncome', key: 'netIncome', width: 140, render: (v) => <span style={{ color: 'var(--amount-color, #c9a96e)', fontWeight: 600 }}>¥{Number(v || 0).toLocaleString()}</span> },
     { title: '状态', dataIndex: 'status', key: 'status', width: 90, render: (v) => <Tag color={statusColorMap[v] || 'default'}>{reconciliationStatusMap[v]?.label || (v === 'checked' ? '已对账' : '待对账')}</Tag> },
     { title: '对账人', dataIndex: 'checkedBy', key: 'checkedBy', width: 100, render: (v) => v || '-' },
-    { title: '操作', key: 'action', width: 120, fixed: 'right',
+    ...(canRecStatus || canRecAdd ? [{
+      title: '操作', key: 'action', width: 120, fixed: 'right',
       render: (_, record) => (
         record.reconciliationId ? (
           <Space>
-            {record.status === 'pending' && <Button type="link" size="small" onClick={() => handleToggleStatus(record.reconciliationId, 'checked')}>确认对账</Button>}
-            {record.status === 'checked' && <Button type="link" size="small" onClick={() => handleToggleStatus(record.reconciliationId, 'pending')}>撤销</Button>}
+            {canRecStatus && record.status === 'pending' && <Button type="link" size="small" onClick={() => handleToggleStatus(record.reconciliationId, 'checked')}>确认对账</Button>}
+            {canRecStatus && record.status === 'checked' && <Button type="link" size="small" onClick={() => handleToggleStatus(record.reconciliationId, 'pending')}>撤销</Button>}
           </Space>
-        ) : <Button type="link" size="small" onClick={() => handleAdd()}>调账</Button>
+        ) : canRecAdd && <Button type="link" size="small" onClick={() => handleAdd()}>调账</Button>
       ),
-    },
-  ], [reconciliationStatusMap]);
+    }] : []),
+  ], [reconciliationStatusMap, canRecAdd, canRecStatus]);
 
   const manualColumns = useMemo(() => [
     { title: '对账日期', dataIndex: 'date', key: 'date', width: 110, render: formatTime.render },
@@ -116,19 +123,22 @@ const ReconciliationTab = () => {
     { title: '其他费用', dataIndex: 'fees', key: 'fees', width: 110, render: (v) => `¥${Number(v || 0).toLocaleString()}` },
     { title: '净收入', dataIndex: 'netIncome', key: 'netIncome', width: 130, render: (v) => <span style={{ color: 'var(--amount-color, #c9a96e)', fontWeight: 600 }}>¥{Number(v || 0).toLocaleString()}</span> },
     { title: '状态', dataIndex: 'status', key: 'status', width: 90, render: (v) => <Tag color={statusColorMap[v] || 'default'}>{reconciliationStatusMap[v]?.label || v}</Tag> },
-    { title: '操作', key: 'action', width: 200, fixed: 'right',
+    ...(canRecUpdate || canRecStatus || canRecDelete ? [{
+      title: '操作', key: 'action', width: 200, fixed: 'right',
       render: (_, record) => (
         <Space>
-          <Button type="link" size="small" icon={<EditOutlined />} onClick={() => handleEdit(record)}>编辑</Button>
-          {record.status === 'pending' && <Button type="link" size="small" onClick={() => handleToggleStatus(record.id, 'checked')}>对账</Button>}
-          {record.status === 'checked' && <Button type="link" size="small" onClick={() => handleToggleStatus(record.id, 'pending')}>撤销</Button>}
-          <Popconfirm title="确定删除？" onConfirm={() => handleDelete(record.id)}>
-            <Button type="link" size="small" danger icon={<DeleteOutlined />}>删除</Button>
-          </Popconfirm>
+          {canRecUpdate && <Button type="link" size="small" icon={<EditOutlined />} onClick={() => handleEdit(record)}>编辑</Button>}
+          {canRecStatus && record.status === 'pending' && <Button type="link" size="small" onClick={() => handleToggleStatus(record.id, 'checked')}>对账</Button>}
+          {canRecStatus && record.status === 'checked' && <Button type="link" size="small" onClick={() => handleToggleStatus(record.id, 'pending')}>撤销</Button>}
+          {canRecDelete && (
+            <Popconfirm title="确定删除？" onConfirm={() => handleDelete(record.id)}>
+              <Button type="link" size="small" danger icon={<DeleteOutlined />}>删除</Button>
+            </Popconfirm>
+          )}
         </Space>
       ),
-    },
-  ], [reconciliationStatusMap]);
+    }] : []),
+  ], [reconciliationStatusMap, canRecUpdate, canRecStatus, canRecDelete]);
 
   return (
     <div>
@@ -178,7 +188,7 @@ const ReconciliationTab = () => {
       <Card
         title="手工调账记录"
         variant="borderless"
-        extra={<Button type="primary" icon={<PlusOutlined />} onClick={handleAdd}>新增调账</Button>}
+        extra={hasPermission('finance:reconciliation:add') && <Button type="primary" icon={<PlusOutlined />} onClick={handleAdd}>新增调账</Button>}
       >
         <Alert
           message="调账用于补录系统未自动捕获的账目（如线下收据、历史数据迁移等）。日常对账请以上方自动聚合表为准。"

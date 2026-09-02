@@ -17,7 +17,7 @@ const statusColorMap = { pending: 'orange', paid: 'blue', renting: 'processing',
 
 const OrderList = () => {
   const navigate = useNavigate();
-  const { hasButtonPermission } = useAuthStore();
+  const { hasPermission, hasButtonPermission } = useAuthStore();
   const [data, setData] = useState([]);
   const [loading, setLoading] = useState(false);
   const [total, setTotal] = useState(0);
@@ -130,11 +130,11 @@ const OrderList = () => {
       render: (_, record) => (
         <Space size="small">
           <Button type="link" size="small" icon={<EyeOutlined />} onClick={() => navigate(`/orders/${record.id}`)}>详情</Button>
-          <Button type="link" size="small" icon={<EditOutlined />} onClick={() => handleOpenStatusModal(record)}>状态</Button>
+          {hasPermission('order:status') && <Button type="link" size="small" icon={<EditOutlined />} onClick={() => handleOpenStatusModal(record)}>状态</Button>}
         </Space>
       ),
     },
-  ], [navigate, statusMap, handleOpenStatusModal]);
+  ], [navigate, statusMap, handleOpenStatusModal, hasPermission]);
 
   const tabItems = useMemo(() => {
     // tab 角标提示：用问号图标 Tooltip 解释角标含义

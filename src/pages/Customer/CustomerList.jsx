@@ -1,4 +1,4 @@
-﻿import { useState, useEffect, useMemo, useCallback } from 'react';
+import { useState, useEffect, useMemo, useCallback } from 'react';
 import { Table, Button, Space, Tag, Input, InputNumber, Modal, Form, Select, Popconfirm, Row, Col, Card, Progress, Statistic, Descriptions, Image, Spin } from 'antd';
 import { message } from '@/utils/antdStatic';
 import { SearchOutlined, ReloadOutlined, EditOutlined, EyeOutlined } from '@ant-design/icons';
@@ -32,7 +32,7 @@ const parseTags = (tags) => {
 };
 
 const CustomerList = () => {
-  const { hasButtonPermission } = useAuthStore();
+  const { hasPermission } = useAuthStore();
   const [data, setData] = useState([]);
   const [loading, setLoading] = useState(false);
   const [total, setTotal] = useState(0);
@@ -124,8 +124,8 @@ const CustomerList = () => {
       render: (_, record) => (
         <Space size="small">
           <Button type="link" size="small" icon={<EyeOutlined />} onClick={() => handleViewDetail(record)}>详情</Button>
-          {hasButtonPermission('customer', 'edit') && <Button type="link" size="small" icon={<EditOutlined />} onClick={() => handleEdit(record)}>编辑</Button>}
-          {hasButtonPermission('customer', 'edit') && (
+          {hasPermission('customer:update') && <Button type="link" size="small" icon={<EditOutlined />} onClick={() => handleEdit(record)}>编辑</Button>}
+          {hasPermission('customer:status') && (
             <Popconfirm title={`确定${record.status ? '禁用' : '启用'}？`} onConfirm={() => handleToggleStatus(record)}>
               <Button type="link" size="small" danger={!!record.status}>{record.status ? '禁用' : '启用'}</Button>
             </Popconfirm>
@@ -133,7 +133,7 @@ const CustomerList = () => {
         </Space>
       ),
     },
-  ], [hasButtonPermission, memberLevelMap, handleViewDetail, handleEdit, handleToggleStatus]);
+  ], [hasPermission, memberLevelMap, handleViewDetail, handleEdit, handleToggleStatus]);
 
   // 渲染实名状态 Tag
   const renderRealNameStatus = (v) => {

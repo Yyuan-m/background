@@ -8,6 +8,7 @@ import useVehicleOptions from '@/hooks/useVehicleOptions';
 import { message } from '@/utils/antdStatic';
 import { formatTime } from '@/utils/formatTime';
 import { imageUrl } from '@/utils/imageUrl';
+import useAuthStore from '@/store/useAuthStore';
 
 const CAR_IMAGE_CATEGORY_DICT = 'car_image_category';
 
@@ -28,6 +29,7 @@ const renderCategoryTag = (v) => v ? <Tag color={CATEGORY_COLOR_MAP[v] || 'defau
 
 const ImageGallery = () => {
   const { options: vehicleOptions } = useVehicleOptions();
+  const { hasPermission } = useAuthStore();
 
   // 车辆下拉选项：名称 + 车牌号，便于识别；rawName 保留纯名称用于回填
   const vehicleSelectOptions = useMemo(() => vehicleOptions.map((o) => ({
@@ -107,7 +109,7 @@ const ImageGallery = () => {
     setImageFile(null);
   };
 
-  const columns = [
+  const columns = useMemo(() => [
     { title: '车辆', dataIndex: 'vehicleName', key: 'vehicleName', width: 160 },
     { title: '分类', dataIndex: 'category', key: 'category', width: 90, render: renderCategoryTag },
     {
@@ -124,17 +126,19 @@ const ImageGallery = () => {
       ),
     },
     { title: '上传时间', dataIndex: 'createdAt', key: 'createdAt', width: 120, render: formatTime.render },
-    {
+    ...(hasPermission('vehicle:image:delete') ? [{
       title: '操作', key: 'action', width: 80,
       render: (_, record) => (
         <Popconfirm title="确定删除此素材？" onConfirm={() => handleDelete(record.id)}>
           <Button type="link" size="small" danger>删除</Button>
         </Popconfirm>
       ),
-    },
-  ];
+    }] : []),
+  ], [hasPermission, handleDelete]);
 
   return (
+    <div className="page-container">
+      <h2 className="page-title">素材管理</h2>
     <Card variant="borderless">
       <Card variant="borderless" style={{ marginBottom: 16 }}>
         <Row gutter={[16, 16]} align="middle">
@@ -167,7 +171,7 @@ const ImageGallery = () => {
       </Card>
 
       <div style={{ marginBottom: 16 }}>
-        <Button type="primary" icon={<UploadOutlined />} onClick={() => setUploadVisible(true)}>上传素材</Button>
+        {hasPermission('vehicle:image:add') && <Button type="primary" icon={<UploadOutlined />} onClick={() => setUploadVisible(true)}>上传素材</Button>}
       </div>
 
       <Table
@@ -231,7 +235,9 @@ const ImageGallery = () => {
         </Form>
       </Modal>
     </Card>
+    </div>
   );
 };
 
+ImageGallery.routeConfig = { path: '/vehicles/images', permission: 'vehicle:image' };
 export default ImageGallery;

@@ -20,6 +20,7 @@ import {
 } from '@ant-design/icons';
 import { getVerifyListApi, getVerifyDetailApi, reviewVerifyApi, getVerifyStatsApi } from '@/api/modules/customer';
 import { customerImageUrl } from '@/utils/imageUrl';
+import useAuthStore from '@/store/useAuthStore';
 import './CustomerVerify.scss';
 
 // 记录状态展示
@@ -54,6 +55,7 @@ const imageItems = [
 ];
 
 const CustomerVerify = () => {
+  const { hasPermission } = useAuthStore();
   const [data, setData] = useState([]);
   const [loading, setLoading] = useState(false);
   const [total, setTotal] = useState(0);
@@ -232,13 +234,13 @@ const CustomerVerify = () => {
       render: (_, r) => (
         <Space>
           <Button type="link" size="small" icon={<EyeOutlined />} onClick={() => openDetail(r)}>详情</Button>
-          {r.status === 'pending' && (
+          {r.status === 'pending' && hasPermission('customer:update') && (
             <Button type="link" size="small" icon={<CheckOutlined />} onClick={() => openReview(r)}>审核</Button>
           )}
         </Space>
       ),
     },
-  ], []);
+  ], [hasPermission]);
 
   // 统计卡片配置
   const statCards = [
@@ -395,7 +397,7 @@ const CustomerVerify = () => {
               </Descriptions.Item>
             </Descriptions>
 
-            {detail.status === 'pending' && (
+            {detail.status === 'pending' && hasPermission('customer:update') && (
               <Button type="primary" block style={{ marginTop: 20 }} onClick={() => { setDetailVisible(false); openReview(detail); }}>
                 去审核
               </Button>

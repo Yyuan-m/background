@@ -14,9 +14,8 @@ import StatCard from '@/components/StatCard';
 // 轮播图已从仪表盘移除，改为仅在系统设置中配置，供 C 端官网首页使用
 // import HomeCarousel from '@/components/HomeCarousel';
 import { getDashboardStatsApi, getOrderTrendApi, getRevenueDataApi, getVehicleTypeDataApi,
-  getVehicleHotDataApi, getRepurchaseDataApi, getPeakHoursDataApi } from '@/api/modules/finance';
-import { getOrdersApi } from '@/api/modules/order';
-import { getCustomersApi } from '@/api/modules/customer';
+  getVehicleHotDataApi, getRepurchaseDataApi, getPeakHoursDataApi,
+  getLatestOrdersApi, getLatestCustomersApi } from '@/api/modules/finance';
 import '@/pages/Dashboard/Dashboard.scss';
 import { formatTime } from '@/utils/formatTime';
 import { getChartColor } from '@/utils/chartColors';
@@ -59,11 +58,11 @@ const Dashboard = () => {
       const [statsRes, trendRes, revenueRes, typeRes, hotRes, repurchaseRes, peakRes, ordersRes, customersRes] = await Promise.all([
         getDashboardStatsApi(), getOrderTrendApi(), getRevenueDataApi(), getVehicleTypeDataApi(),
         getVehicleHotDataApi(), getRepurchaseDataApi(), getPeakHoursDataApi(),
-        getOrdersApi({ page: 1, pageSize: 5 }), getCustomersApi({ page: 1, pageSize: 5 }),
+        getLatestOrdersApi(), getLatestCustomersApi(),
       ]);
       setStats(statsRes || {}); setOrderTrend(trendRes || []); setRevenueData(revenueRes || []);
       setVehicleTypeData(typeRes || []); setVehicleHotData(hotRes || []); setRepurchaseData(repurchaseRes || []);
-      setPeakHoursData(peakRes || []); setLatestOrders(ordersRes?.list || []); setLatestCustomers(customersRes?.list || []);
+      setPeakHoursData(peakRes || []); setLatestOrders(ordersRes || []); setLatestCustomers(customersRes || []);
     } catch (e) { console.error(e); } finally { setLoading(false); }
   }, []);
 

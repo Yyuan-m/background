@@ -82,31 +82,34 @@ const Sidebar = ({ horizontal = false }) => {
   );
 
   // 当前路径选中的菜单项 key
+  // 采用「最长前缀匹配」：/vehicles/maintenance 应命中维保记录而非车辆列表(/vehicles)
   const selectedKeys = useMemo(() => {
     const path = location.pathname;
-    const matchedItem = filteredItems.find((item) => {
-      if (item.children) return item.children.some((child) => path.startsWith(child.key));
-      return path.startsWith(item.key);
+    // 收集所有可命中的菜单 key（顶级 + 子菜单），取 path 的最长前缀作为选中项
+    const allKeys = [];
+    filteredItems.forEach((item) => {
+      allKeys.push({ key: item.key, len: item.key.length });
+      if (item.children) {
+        item.children.forEach((child) => allKeys.push({ key: child.key, len: child.key.length }));
+      }
     });
-    if (matchedItem?.children) {
-      const child = matchedItem.children.find((c) => path.startsWith(c.key));
-      return child ? [child.key] : [path];
-    }
-    return [path];
+    const matched = allKeys
+      .filter(({ key }) => path === key || path.startsWith(key.endsWith('/') ? key : `${key}/`))
+      .sort((a, b) => b.len - a.len);
+    return matched.length > 0 ? [matched[0].key] : [path];
   }, [location.pathname, filteredItems]);
 
-  // 受控的展开菜单项
+  // 受控的展开菜单项（手风琴：每次只展开一个有子菜单的父级）
   const [openKeys, setOpenKeys] = useState(() =>
     getAncestorKeys(menuTree, location.pathname),
   );
 
-  // 路径变化时自动展开对应父级
+  // 路径变化时展开当前路径所在父级，并收起其它父级（手风琴）
   useEffect(() => {
     const ancestors = getAncestorKeys(menuTree, location.pathname);
-    setOpenKeys((prev) => {
-      const merged = [...new Set([...prev, ...ancestors])];
-      return merged;
-    });
+    // 取最深一层父级：只展开一个
+    const next = ancestors.length > 0 ? [ancestors[ancestors.length - 1]] : [];
+    setOpenKeys(next);
   }, [location.pathname]);
 
   const handleMenuClick = ({ key }) => {
@@ -114,7 +117,14 @@ const Sidebar = ({ horizontal = false }) => {
   };
 
   const handleOpenChange = (keys) => {
-    setOpenKeys(keys);
+    // 手风琴：每次只展开一个父级。受控模式下 onOpenChange 返回最新展开集合，
+    // antd inline 菜单最近操作（展开）的父级位于数组末尾，因此只保留它就是想要的唯一展开项。
+    // 触发收起（keys 为空或减少）时直接跟随，允许完全收起。
+    if (keys.length > 1) {
+      setOpenKeys([keys[keys.length - 1]]);
+    } else {
+      setOpenKeys(keys);
+    }
   };
 
   if (horizontal) {

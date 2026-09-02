@@ -7,10 +7,10 @@
     <meta name="theme-color" content="#1a365d" />
     <meta name="description" content="大圣玩车后台管理系统" />
     <title>LUXURY CAR - 大圣玩车后台管理系统</title>
-    <script type="module" crossorigin src="/js/index-NJ8OaaIYPC.js"></script>
+    <script type="module" crossorigin src="/js/index-C-VBklNhjQ.js"></script>
     <link rel="modulepreload" crossorigin href="/js/vendor-react-DHBSyiS4DE.js">
     <link rel="modulepreload" crossorigin href="/js/vendor-utils-DyJPqqD2v9.js">
-    <link rel="modulepreload" crossorigin href="/js/vendor-antd-fUvoEzm98f.js">
+    <link rel="modulepreload" crossorigin href="/js/vendor-antd-BKFHH3imHk.js">
     <link rel="stylesheet" crossorigin href="/css/index-Dpa0hVPWgk.css">
   </head>
   <body>
@@ -25,10 +25,16 @@
         //   生产环境: 'http://your-server:8080/api'（直接请求后端地址）
         apiBaseUrl: '',
 
-        // 后端静态资源（图片/文件）基础地址
+        // 后端静态资源（图片/文件）基础地址 —— 后台服务（8088）
         //   开发环境留空（靠 vite.config.js 中的 /uploads 代理）
         //   生产环境填后端 origin，如 'http://your-server:8088'
         assetBaseUrl: '',
+
+        // 客户端服务（8089）静态资源基础地址
+        //   用于展示客户头像、客户评价图片等由 8089 服务上传的资源
+        //   开发环境配置为客户端服务完整地址（直连，CORS 已开启）
+        //   生产环境同样填客户端服务 origin，如 'http://your-server:8089'
+        customerAssetBaseUrl: 'http://localhost:8089',
 
         // 应用名称（显示在浏览器标题栏）
         appName: 'LUXURY CAR',

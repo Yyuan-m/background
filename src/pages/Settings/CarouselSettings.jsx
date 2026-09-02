@@ -13,6 +13,7 @@ import FileUploader from '@/components/FileUploader';
 import { t } from '@/i18n';
 import { imageUrl } from '@/utils/imageUrl';
 import dayjs from 'dayjs';
+import useAuthStore from '@/store/useAuthStore';
 
 const CarouselSettings = () => {
   const { message: msgApi } = App.useApp();
@@ -26,6 +27,10 @@ const CarouselSettings = () => {
   const [vehicleList, setVehicleList] = useState([]);
   const [togglingId, setTogglingId] = useState(null);
   const [form] = Form.useForm();
+  const { hasPermission } = useAuthStore();
+  const canCarouselStatus = hasPermission('settings:carousel:status');
+  const canCarouselUpdate = hasPermission('settings:carousel:update');
+  const canCarouselDelete = hasPermission('settings:carousel:delete');
 
   const fetchData = async () => {
     setLoading(true);
@@ -140,7 +145,7 @@ const CarouselSettings = () => {
     }
   };
 
-  const columns = [
+  const columns = useMemo(() => [
     { title: '排序', dataIndex: 'sortOrder', key: 'sortOrder', width: 60 },
     { title: '标题', dataIndex: 'title', key: 'title', width: 180 },
     { title: '描述', dataIndex: 'description', key: 'description', width: 200, ellipsis: true },
@@ -156,24 +161,27 @@ const CarouselSettings = () => {
     { title: '上架时间', dataIndex: 'startTime', key: 'startTime', width: 160, render: (v) => v || '立即' },
     { title: '下架时间', dataIndex: 'endTime', key: 'endTime', width: 160, render: (v) => v || '长期' },
     { title: '状态', dataIndex: 'status', key: 'status', width: 80, render: (v) => v ? <Tag color="green">启用</Tag> : <Tag color="default">禁用</Tag> },
-    { title: '操作', key: 'action', width: 200, fixed: 'right',
+    ...(canCarouselStatus || canCarouselUpdate || canCarouselDelete ? [{
+      title: '操作', key: 'action', width: 200, fixed: 'right',
       render: (_, record) => (
         <Space>
-          <Switch size="small" checked={record.status === 1} loading={togglingId === record.id} onChange={(checked) => handleToggleStatus(record, checked)} />
-          <Button type="link" size="small" icon={<EditOutlined />} onClick={() => handleEdit(record)}>编辑</Button>
-          <Popconfirm title="确定删除？" onConfirm={() => handleDelete(record.id)}>
-            <Button type="link" size="small" danger icon={<DeleteOutlined />}>删除</Button>
-          </Popconfirm>
+          {canCarouselStatus && <Switch size="small" checked={record.status === 1} loading={togglingId === record.id} onChange={(checked) => handleToggleStatus(record, checked)} />}
+          {canCarouselUpdate && <Button type="link" size="small" icon={<EditOutlined />} onClick={() => handleEdit(record)}>编辑</Button>}
+          {canCarouselDelete && (
+            <Popconfirm title="确定删除？" onConfirm={() => handleDelete(record.id)}>
+              <Button type="link" size="small" danger icon={<DeleteOutlined />}>删除</Button>
+            </Popconfirm>
+          )}
         </Space>
       ),
-    },
-  ];
+    }] : []),
+  ], [vehicleMap, togglingId, parseCarId, canCarouselStatus, canCarouselUpdate, canCarouselDelete, handleEdit, handleDelete, handleToggleStatus]);
 
   return (
     <div className="page-container">
       <h2 className="page-title">{t('pageTitle.carousel')}</h2>
       <Card variant="borderless">
-        <div style={{ marginBottom: 16 }}><Button type="primary" icon={<PlusOutlined />} onClick={handleAdd}>新增轮播图</Button></div>
+        <div style={{ marginBottom: 16 }}>{hasPermission('settings:carousel:add') && <Button type="primary" icon={<PlusOutlined />} onClick={handleAdd}>新增轮播图</Button>}</div>
         <Table columns={columns} dataSource={data} rowKey="id" loading={loading} scroll={{ x: 'max-content' }}
           pagination={{
             current: pagination.page,
