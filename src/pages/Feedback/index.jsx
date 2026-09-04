@@ -69,6 +69,7 @@ const FeedbackPage = () => {
   // 统计
   const [stats, setStats] = useState({
     total: 0, pending: 0, handled: 0, today: 0, upcoming: 0, appointment: 0, feedbackCount: 0,
+    pendingAppointment: 0, pendingFeedback: 0,
   });
 
   // 详情抽屉
@@ -98,6 +99,8 @@ const FeedbackPage = () => {
           upcoming: Number(res.upcoming) || 0,
           appointment: Number(res.appointment) || 0,
           feedbackCount: Number(res.feedbackCount) || 0,
+          pendingAppointment: Number(res.pendingAppointment) || 0,
+          pendingFeedback: Number(res.pendingFeedback) || 0,
         });
       }
     } catch (e) {
@@ -255,9 +258,10 @@ const FeedbackPage = () => {
     return r.rentDate;
   };
 
-  const columns = useMemo(() => [
-    { title: 'ID', dataIndex: 'id', key: 'id', width: 60 },
-    { title: '类型', dataIndex: 'type', key: 'type', width: 96, render: typeTag },
+  const columns = useMemo(() => {
+    const cols = [
+      { title: 'ID', dataIndex: 'id', key: 'id', width: 60 },
+      { title: '类型', dataIndex: 'type', key: 'type', width: 96, render: typeTag },
     {
       title: '联系人', key: 'contact', width: 150,
       render: (_, r) => (
@@ -285,8 +289,8 @@ const FeedbackPage = () => {
         </Space>
       ) : <Tag>游客</Tag>),
     },
-    { title: '意向车型', dataIndex: 'carType', key: 'carType', width: 110, render: (v) => v || '-' },
-    { title: '取车日期', key: 'rentDate', width: 170, render: rentDateCell },
+    { title: '意向车型', dataIndex: 'carType', key: 'carType', width: 110, render: (v, r) => (r.type === 'feedback' ? '-' : (v || '-')) },
+    { title: '取车日期', key: 'rentDate', width: 170, render: (_, r) => (r.type === 'feedback' ? '-' : rentDateCell(_, r)) },
     {
       title: '留言内容', dataIndex: 'content', key: 'content', width: 180, ellipsis: { showTitle: false },
       render: (v) => (v ? <Tooltip title={v} placement="topLeft"><span>{v}</span></Tooltip> : '-'),
@@ -331,7 +335,13 @@ const FeedbackPage = () => {
         </Space>
       ),
     },
-  ], [hasPermission]);
+    ];
+    // 留言反馈类型没有意向车型/取车日期，切到该 tab 时隐藏对应列
+    if (type === 'feedback') {
+      return cols.filter((c) => c.key !== 'carType' && c.key !== 'rentDate');
+    }
+    return cols;
+  }, [hasPermission, type]);
 
   // 统计卡片配置（点击卡片联动筛选）
   const statCards = [
@@ -354,6 +364,13 @@ const FeedbackPage = () => {
     { key: 'feedback', label: `留言反馈 (${stats.feedbackCount})` },
     { key: '', label: `全部 (${stats.total})` },
   ];
+
+  // 当前类型 tab 下的"待处理"数量（角标随 tab 联动；全部=全局待处理数）
+  const pendingBadge = type === 'appointment'
+    ? stats.pendingAppointment
+    : type === 'feedback'
+      ? stats.pendingFeedback
+      : stats.pending;
 
   const detailInfo = detail || {};
 
@@ -389,7 +406,7 @@ const FeedbackPage = () => {
       <div style={{ display: 'flex', gap: 12, marginBottom: 16, flexWrap: 'wrap', alignItems: 'center' }}>
         <Radio.Group value={status} onChange={(e) => { setStatus(e.target.value); setPage(1); }} buttonStyle="solid">
           <Radio.Button value="pending">
-            待处理{stats.pending > 0 ? ` (${stats.pending})` : ''}
+            待处理{pendingBadge > 0 ? ` (${pendingBadge})` : ''}
           </Radio.Button>
           <Radio.Button value="handled">已处理</Radio.Button>
           <Radio.Button value="">全部</Radio.Button>
@@ -465,8 +482,13 @@ const FeedbackPage = () => {
                   )
                   : <Tag>游客提交（未登录）</Tag>}
               </Descriptions.Item>
-              <Descriptions.Item label="意向车型">{detailInfo.carType || '-'}</Descriptions.Item>
-              <Descriptions.Item label="取车日期">{detailInfo.rentDate || '-'}</Descriptions.Item>
+              {/* 留言反馈类型在前台提交时无意向车型/取车日期，故不展示 */}
+              {detailInfo.type !== 'feedback' && (
+                <>
+                  <Descriptions.Item label="意向车型">{detailInfo.carType || '-'}</Descriptions.Item>
+                  <Descriptions.Item label="取车日期">{detailInfo.rentDate || '-'}</Descriptions.Item>
+                </>
+              )}
               <Descriptions.Item label="提交时间" span={2}>{formatTime(detailInfo.createTime)}</Descriptions.Item>
             </Descriptions>
 
@@ -515,8 +537,13 @@ const FeedbackPage = () => {
             <Descriptions.Item label="类型">{typeTag(processRecord.type)}</Descriptions.Item>
             <Descriptions.Item label="联系人">{processRecord.name || '-'}</Descriptions.Item>
             <Descriptions.Item label="手机号">{processRecord.phone || '-'}</Descriptions.Item>
-            <Descriptions.Item label="取车日期">{processRecord.rentDate || '-'}</Descriptions.Item>
-            <Descriptions.Item label="意向车型" span={2}>{processRecord.carType || '-'}</Descriptions.Item>
+            {/* 留言反馈类型在前台提交时无意向车型/取车日期，故不展示 */}
+            {processRecord.type !== 'feedback' && (
+              <>
+                <Descriptions.Item label="取车日期">{processRecord.rentDate || '-'}</Descriptions.Item>
+                <Descriptions.Item label="意向车型" span={2}>{processRecord.carType || '-'}</Descriptions.Item>
+              </>
+            )}
             <Descriptions.Item label="留言内容" span={2}>
               <span style={{ whiteSpace: 'pre-wrap' }}>{processRecord.content || '（无留言）'}</span>
             </Descriptions.Item>

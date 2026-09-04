@@ -113,6 +113,10 @@ const useAppStore = create((set, get) => ({
   breadcrumb: [],
   setBreadcrumb: (breadcrumb) => set({ breadcrumb }),
 
+  // 当前页面刷新 key：自增时强制重挂载内容区（Outlet），重新请求当前页所有接口
+  pageRefreshKey: 0,
+  refreshCurrentPage: () => set((state) => ({ pageRefreshKey: state.pageRefreshKey + 1 })),
+
   // 动态菜单树（侧边栏渲染数据源）
   menuTree: [],
   menuLoading: false,

@@ -29,7 +29,7 @@ const { Header: AntHeader } = Layout;
 
 const Header = () => {
   const navigate = useNavigate();
-  const { sidebarCollapsed, toggleSidebar } = useAppStore();
+  const { sidebarCollapsed, toggleSidebar, refreshCurrentPage } = useAppStore();
   const { user, logout } = useAuthStore();
   const { layout, showRefresh, showSearch, showFullscreen, fixedHeader } = useThemeStore();
   const { isFullscreen, toggleFullscreen } = useFullscreen();
@@ -49,8 +49,9 @@ const Header = () => {
     window.location.href = '/login';
   };
 
+  // 刷新当前页面：重挂载内容区组件，重新请求当前页所有接口（不整页 reload）
   const handleRefresh = () => {
-    window.location.reload();
+    refreshCurrentPage();
   };
 
   // 输入搜索

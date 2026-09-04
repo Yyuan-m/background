@@ -103,7 +103,7 @@ const collapsedWidth = 80;
 const MainLayout = () => {
   const location = useLocation();
   const navigate = useNavigate();
-  const { sidebarCollapsed, tabs, activeTab, addTab, removeTab, loadMenuTree } = useAppStore();
+  const { sidebarCollapsed, tabs, activeTab, addTab, removeTab, loadMenuTree, pageRefreshKey } = useAppStore();
   const { layout, showTabs, tabStyle, showTabIcons, sidebarWidth: sidebarWidthKey, fixedHeader } = useThemeStore();
   const [confirmVisible, setConfirmVisible] = useState(false);
   const [pendingRemoveKey, setPendingRemoveKey] = useState(null);
@@ -392,7 +392,8 @@ const MainLayout = () => {
         )}
 
         <Content className="main-content" style={{ maxWidth: 'var(--content-max-width, 100%)', margin: '0 auto', width: '100%' }}>
-          <Outlet />
+          {/* key 变化时强制重挂载当前页面组件，重新请求该页所有接口 */}
+          <Outlet key={`${location.pathname}-${pageRefreshKey}`} />
         </Content>
 
         {/* 底部联系我们模块 */}
