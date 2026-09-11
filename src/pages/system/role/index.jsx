@@ -299,8 +299,56 @@ const RoleManagement = () => {
   };
 
   // 反选：已选与未选互换
+  // 【坑】Tree 是级联模式：勾选父节点会级联勾选其全部子孙，且「半勾选」的父节点并不在 checkedKeys 里。
+  // 若直接对 checkedKeys 取补集，半勾选的父节点会被算进反选集合，勾选后级联重新勾回其全部子孙，
+  // 表现为「原本选中的选项反选后依然处于选中状态」。
+  // 正确做法：以「实际勾选集合（checkedKeys + 级联子孙）」为基准取反，
+  // 且只对「整个子树都未勾选」的节点执行勾选，避免级联误勾。
   const handleInvert = () => {
-    const newChecked = allMenuKeys.filter((key) => !checkedKeys.includes(key));
+    if (!menuTree.length) return;
+    // 1. 计算实际勾选集合：checkedKeys + 勾选节点级联勾选出的子孙
+    const effective = new Set(checkedKeys);
+    const expandDescendants = (nodes) => {
+      nodes.forEach((node) => {
+        if (effective.has(node.key) && node.children) {
+          const collect = (list) => {
+            list.forEach((child) => {
+              effective.add(child.key);
+              if (child.children) collect(child.children);
+            });
+          };
+          collect(node.children);
+        }
+        if (node.children) expandDescendants(node.children);
+      });
+    };
+    expandDescendants(menuTree);
+
+    // 2. 对「整个子树都未勾选」的节点执行勾选，并补全其全部子孙
+    //（与打开弹窗时的展开规则一致，保证保存时不会丢按钮权限）
+    const newChecked = [];
+    const subtreeAllUnchecked = (node) => {
+      if (effective.has(node.key)) return false;
+      return (node.children || []).every(subtreeAllUnchecked);
+    };
+    const collect = (nodes) => {
+      nodes.forEach((node) => {
+        if (subtreeAllUnchecked(node)) {
+          const addSubtree = (list) => {
+            list.forEach((child) => {
+              newChecked.push(child.key);
+              if (child.children) addSubtree(child.children);
+            });
+          };
+          newChecked.push(node.key);
+          if (node.children) addSubtree(node.children);
+        } else if (node.children) {
+          collect(node.children);
+        }
+      });
+    };
+    collect(menuTree);
+
     if (permRole && permRole.roleKey === 'super_admin' && newChecked.length === 0) {
       message.warning('超级管理员不能清空全部权限');
       return;
