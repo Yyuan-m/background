@@ -114,7 +114,28 @@ const OrderList = () => {
     },
     { title: '联系人', dataIndex: 'contactName', key: 'contactName', width: 90 },
     { title: '联系电话', dataIndex: 'contactPhone', key: 'contactPhone', width: 120 },
-    { title: '租期', key: 'period', width: 200, render: (_, r) => `${formatTime(r.startDate)}~${formatTime(r.endDate)}(${r.days}天)` },
+    {
+      title: '租期', key: 'period', width: 240,
+      render: (_, r) => {
+        // 多车订单：逐车展示各自租期，并与车辆一一对应（行内前缀车辆名）
+        const items = (r.items && r.items.length > 0) ? r.items : null;
+        if (items && items.length > 1) {
+          return (
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
+              {items.slice(0, 2).map((it, i) => (
+                <span key={i} style={{ lineHeight: '18px' }}>
+                  <span style={{ color: 'var(--text-tertiary, #999)', marginRight: 4 }}>{it.carName || '车辆'}</span>
+                  {formatTime(it.startDate)}~{formatTime(it.endDate)}({it.days}天)
+                </span>
+              ))}
+              {items.length > 2 && <span style={{ color: 'var(--text-tertiary, #999)', fontSize: 12 }}>等 {items.length} 辆车</span>}
+            </div>
+          );
+        }
+        // 单车/历史订单：仍用主表字段
+        return `${formatTime(r.startDate)}~${formatTime(r.endDate)}(${r.days}天)`;
+      },
+    },
     { title: '总金额', dataIndex: 'totalAmount', key: 'totalAmount', width: 120, render: (v) => <span style={{ color: 'var(--amount-color, #c9a96e)', fontWeight: 600 }}>¥{v?.toLocaleString()}</span> },
     { title: '城市', dataIndex: 'city', key: 'city', width: 90, render: (v) => v ? <Tag>{v}</Tag> : '-' },
     { title: '门店', dataIndex: 'store', key: 'store', width: 130, ellipsis: true, render: (v) => v || '-' },
