@@ -21,6 +21,9 @@ export const deleteVehicleApi = (id) => del(`/api/car/delete/${id}`);
 /** 切换车辆状态 */
 export const toggleVehicleStatusApi = (id, status) => put(`/api/car/status/${id}`, null, { params: { status } });
 
+/** 车辆预约情况（未结束订单：当前租赁中 + 未来预约） */
+export const getVehicleReservationsApi = (id) => get(`/api/car/reservations/${id}`);
+
 // 别名导出
 export const getCarListApi = getVehiclesApi;
 export const getCarDetailApi = getVehicleDetailApi;

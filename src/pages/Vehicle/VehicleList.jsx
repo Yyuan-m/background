@@ -1,8 +1,8 @@
 import { useState, useEffect, useMemo, useCallback, useRef } from 'react';
 import { Table, Button, Space, Tag, Input, Select, Modal, Form, InputNumber, Popconfirm, Row, Col, Card, Descriptions, Image, Divider } from 'antd';
 import { message } from '@/utils/antdStatic';
-import { PlusOutlined, SearchOutlined, ReloadOutlined, EditOutlined, DeleteOutlined, EyeOutlined, SettingOutlined, PictureOutlined } from '@ant-design/icons';
-import { getVehiclesApi, getVehicleDetailApi, addVehicleApi, updateVehicleApi, deleteVehicleApi, toggleVehicleStatusApi } from '@/api/modules/vehicle';
+import { PlusOutlined, SearchOutlined, ReloadOutlined, EditOutlined, DeleteOutlined, EyeOutlined, SettingOutlined, PictureOutlined, CalendarOutlined } from '@ant-design/icons';
+import { getVehiclesApi, getVehicleDetailApi, addVehicleApi, updateVehicleApi, deleteVehicleApi, toggleVehicleStatusApi, getVehicleReservationsApi } from '@/api/modules/vehicle';
 import DictSelect from '@/components/DictSelect';
 import FileUploader from '@/components/FileUploader';
 import { useDict } from '@/hooks/useDict';
@@ -93,6 +93,12 @@ const VehicleList = () => {
   const [detailVisible, setDetailVisible] = useState(false);
   const [detailVehicle, setDetailVehicle] = useState(null);
 
+  // 预约情况弹窗
+  const [reserveVisible, setReserveVisible] = useState(false);
+  const [reserveVehicle, setReserveVehicle] = useState(null);
+  const [reserveList, setReserveList] = useState([]);
+  const [reserveLoading, setReserveLoading] = useState(false);
+
   // 车辆图片（一辆车一张照片）
   const [vehicleImage, setVehicleImage] = useState('');
 
@@ -136,6 +142,9 @@ const VehicleList = () => {
       const cfg = detail?.carConfig || {};
       form.setFieldsValue({
         ...detail,
+        // 状态展示列表行的实时计算结果（detail 为持久化值，可能与订单实时状态不一致）；
+        // 编辑时状态字段已禁用，后端也会忽略提交的 status
+        status: record.status || detail.status,
         tags: parseTags(detail.tags),
         carConfig: {
           ...cfg,
@@ -189,6 +198,46 @@ const VehicleList = () => {
     await toggleVehicleStatusApi(record.id, newStatus); message.success('操作成功'); void fetchData();
   };
 
+  // 预约情况弹窗：加载该车辆全部未结束订单（当前租赁中 + 未来预约）
+  const handleViewReservations = async (record) => {
+    setReserveVehicle(record);
+    setReserveList([]);
+    setReserveVisible(true);
+    setReserveLoading(true);
+    try {
+      const list = await getVehicleReservationsApi(record.id);
+      setReserveList(Array.isArray(list) ? list : []);
+    } catch (e) {
+      console.error(e);
+      setReserveList([]);
+    } finally {
+      setReserveLoading(false);
+    }
+  };
+
+  // 预约弹窗列定义
+  const reserveColumns = [
+    { title: '订单号', dataIndex: 'orderNo', key: 'orderNo', width: 130 },
+    { title: '客户姓名', dataIndex: 'contactName', key: 'contactName', width: 100 },
+    { title: '联系电话', dataIndex: 'contactPhone', key: 'contactPhone', width: 130 },
+    { title: '开始日期', dataIndex: 'startDate', key: 'startDate', width: 110 },
+    { title: '结束日期', dataIndex: 'endDate', key: 'endDate', width: 110 },
+    {
+      title: '订单状态', dataIndex: 'status', key: 'status', width: 90,
+      render: (s) => s === 'renting' ? <Tag color="blue">租赁中</Tag> : <Tag color="orange">待支付</Tag>,
+    },
+    {
+      title: '备注', key: 'remark', width: 100,
+      render: (_, r) => {
+        // 本地日期 YYYY-MM-DD（toLocaleDateString 'sv' 输出 ISO 格式，避免 toISOString 的 UTC 时区偏差）
+        const today = new Date().toLocaleDateString('sv');
+        if (r.startDate <= today && r.endDate >= today) return <Tag color="cyan">当前使用中</Tag>;
+        if (r.startDate > today) return <Tag color="gold">未来预约</Tag>;
+        return '-';
+      },
+    },
+  ];
+
   const columns = useMemo(() => [
     { title: 'ID', dataIndex: 'id', key: 'id', width: 50 },
     { title: '车辆图片', dataIndex: 'images', key: 'images', width: 90,
@@ -223,12 +272,17 @@ const VehicleList = () => {
         return <Tag color={color}>{text}</Tag>;
       },
     },
+    {
+      title: '是否已预约', dataIndex: 'reservedCount', key: 'reservedCount', width: 100,
+      render: (v) => Number(v) > 0 ? <Tag color="gold">已预约</Tag> : <Tag>未预约</Tag>,
+    },
     { title: '标签', dataIndex: 'tags', key: 'tags', width: 180, render: (tags) => parseTags(tags).map((t) => <Tag key={t} color="geekblue">{t}</Tag>) },
     {
-      title: '操作', key: 'action', width: 260, fixed: 'right',
+      title: '操作', key: 'action', width: 300, fixed: 'right',
       render: (_, record) => (
         <Space size="small">
           <Button type="link" size="small" icon={<EyeOutlined />} onClick={() => handleViewDetail(record)}>详情</Button>
+          <Button type="link" size="small" icon={<CalendarOutlined />} onClick={() => handleViewReservations(record)}>预约</Button>
           {hasPermission('vehicle:update') && <Button type="link" size="small" icon={<EditOutlined />} onClick={() => handleEdit(record)}>编辑</Button>}
           {hasPermission('vehicle:status') && <Button type="link" size="small" onClick={() => handleToggleStatus(record)}>{record.status === 'offline' ? '上架' : '下架'}</Button>}
           {hasPermission('vehicle:delete') && (
@@ -239,7 +293,7 @@ const VehicleList = () => {
         </Space>
       ),
     },
-  ], [hasPermission, statusMap, handleEdit, handleToggleStatus, handleDelete]);
+  ], [hasPermission, statusMap, handleEdit, handleToggleStatus, handleDelete, handleViewReservations]);
 
   return (
     <div className="page-container">
@@ -343,8 +397,13 @@ const VehicleList = () => {
             </Col>
             <Col span={6}><Form.Item name="originalValue" label="原值(万)"><InputNumber min={0} style={{ width: '100%' }} /></Form.Item></Col>
             <Col span={6}>
-              <Form.Item name="status" label="状态" initialValue="idle">
-                <DictSelect dictType={VEHICLE_STATUS_DICT} placeholder="请选择" style={{ width: '100%' }} />
+              <Form.Item
+                name="status"
+                label="状态"
+                initialValue="idle"
+                tooltip={editingId ? '出租状态由订单按当天日期自动计算（当天在租即显示租赁中，未来预约不影响当前可租），不可手动修改；如需上/下架请在列表中操作' : undefined}
+              >
+                <DictSelect dictType={VEHICLE_STATUS_DICT} placeholder="请选择" style={{ width: '100%' }} disabled={!!editingId} />
               </Form.Item>
             </Col>
             <Col span={6}><Form.Item name="seats" label="座位数"><InputNumber min={1} max={20} style={{ width: '100%' }} /></Form.Item></Col>
@@ -486,6 +545,42 @@ const VehicleList = () => {
             </>
           );
         })()}
+      </Modal>
+      {/* 预约情况弹窗 */}
+      <Modal
+        title={`预约情况 - ${reserveVehicle?.name || ''}`}
+        open={reserveVisible}
+        onCancel={() => setReserveVisible(false)}
+        footer={null}
+        width={900}
+      >
+        {/* 汇总：是否已预约（以未来预约为准，当前租赁中不影响"可继续出租"判断） */}
+        {reserveVehicle && (
+          <div style={{ marginBottom: 16 }}>
+            {Number(reserveVehicle.reservedCount) > 0 ? (
+              <>
+                <Tag color="gold">已预约</Tag>
+                <span style={{ color: 'var(--text-secondary, #64748b)', marginLeft: 8 }}>
+                  存在 {Number(reserveVehicle.reservedCount)} 个未来预约（开始日期晚于今天），当天租期开始前仍可继续出租
+                </span>
+              </>
+            ) : (
+              <>
+                <Tag>未预约</Tag>
+                <span style={{ color: 'var(--text-secondary, #64748b)', marginLeft: 8 }}>暂无未来预约订单</span>
+              </>
+            )}
+          </div>
+        )}
+        <Table
+          columns={reserveColumns}
+          dataSource={reserveList}
+          rowKey="id"
+          loading={reserveLoading}
+          size="small"
+          pagination={false}
+          locale={{ emptyText: reserveLoading ? ' ' : '暂无预约订单' }}
+        />
       </Modal>
     </div>
   );
