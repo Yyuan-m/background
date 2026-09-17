@@ -29,6 +29,7 @@ const CostTab = () => {
   const [loading, setLoading] = useState(false);
   const [pagination, setPagination] = useState({ page: 1, pageSize: 10 });
   const [total, setTotal] = useState(0);
+  const [summary, setSummary] = useState({});
   const [filterType, setFilterType] = useState(undefined);
   const [keyword, setKeyword] = useState('');
   const [modalVisible, setModalVisible] = useState(false);
@@ -70,6 +71,7 @@ const CostTab = () => {
       });
       setData(res?.list || []);
       setTotal(res?.total || 0);
+      setSummary(res?.summary || {});
     } catch (e) { console.error(e); }
     setLoading(false);
   }, [pagination, filterType, keyword]);
@@ -117,11 +119,8 @@ const CostTab = () => {
     } catch { /* 校验失败或请求失败 */ }
   };
 
-  // 当前页合计（仅统计当前页数据）
-  const currentPageTotal = useMemo(
-    () => data.reduce((s, c) => s + Number(c.amount || 0), 0),
-    [data],
-  );
+  // 筛选结果合计（后端返回，不受分页影响）
+  const filteredAmountTotal = Number(summary?.amountTotal || 0);
 
   // 车辆成本参考表合计
   const vehicleCostSummary = useMemo(() => {
@@ -195,7 +194,7 @@ const CostTab = () => {
       >
         <Alert
           message="数据来源说明"
-          description="本表自动从「车辆管理」的日租价格和日成本价（默认=日租×0.54）派生。累计租赁天数和累计成本从「客户订单」按车辆聚合。该数据与财务总览的成本/利润计算使用同一套算法，确保数据一致。"
+          description="本表自动从「车辆管理」的日租价格和日成本价（默认=日租×0.54）派生。累计租赁天数和累计成本从「客户订单」按车辆聚合，仅统计已完成订单（待支付/租赁中/已取消订单不计入）。该数据与财务总览的成本/利润计算使用同一套算法，确保数据一致。"
           type="info"
           showIcon
           icon={<InfoCircleOutlined />}
@@ -294,11 +293,10 @@ const CostTab = () => {
           summary={() => (
             <Table.Summary fixed>
               <Table.Summary.Row>
-                <Table.Summary.Cell index={0}><strong>当前页合计</strong></Table.Summary.Cell>
+                <Table.Summary.Cell index={0}><strong>筛选结果合计</strong></Table.Summary.Cell>
                 <Table.Summary.Cell index={1} />
-                <Table.Summary.Cell index={2}><strong style={{ color: 'var(--error-color, #ef4444)' }}>¥{currentPageTotal.toLocaleString()}</strong></Table.Summary.Cell>
-                <Table.Summary.Cell index={3} />
-                <Table.Summary.Cell index={4} />
+                <Table.Summary.Cell index={2}><strong style={{ color: 'var(--error-color, #ef4444)' }}>¥{filteredAmountTotal.toLocaleString()}</strong></Table.Summary.Cell>
+                <Table.Summary.Cell index={3} colSpan={Math.max(costColumns.length - 3, 1)} />
               </Table.Summary.Row>
             </Table.Summary>
           )} />

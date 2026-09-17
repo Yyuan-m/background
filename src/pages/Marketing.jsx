@@ -81,6 +81,8 @@ const Marketing = () => {
   const { hasPermission } = useAuthStore();
   // ---------- 优惠券状态 ----------
   const [couponData, setCouponData] = useState([]);
+  // 全量优惠券数据（用于统计卡片，不受筛选条件影响）
+  const [couponStatsData, setCouponStatsData] = useState([]);
   const [couponModalVisible, setCouponModalVisible] = useState(false);
   const [couponEditing, setCouponEditing] = useState(null);
   const [couponForm] = Form.useForm();
@@ -136,6 +138,18 @@ const Marketing = () => {
       setCouponLoading(false);
     }
   }, [couponFilters]);
+
+  // 拉取全量优惠券（不分页、不筛选）用于统计卡片，保证统计结果为所有优惠券而非当前筛选结果
+  const fetchCouponStats = useCallback(async () => {
+    try {
+      const res = await getCouponListApi({ page: 1, pageSize: 10000 });
+      setCouponStatsData(res?.list || []);
+    } catch (err) {
+      console.error('获取优惠券统计失败:', err);
+    }
+  }, []);
+
+  useEffect(() => { fetchCouponStats(); }, [fetchCouponStats]);
 
   const fetchVehicleOptions = useCallback(async () => {
     try {
@@ -490,6 +504,7 @@ const Marketing = () => {
       setCouponModalVisible(false);
       couponForm.resetFields();
       fetchCouponData();
+      fetchCouponStats();
     } catch (err) {
       // 必须把失败暴露给用户，否则会表现为“点保存并发放没反应、也没报错、像卡住”
       console.error('保存优惠券失败:', err);
@@ -508,6 +523,7 @@ const Marketing = () => {
     try {
       await deleteCouponApi(id);
       fetchCouponData();
+      fetchCouponStats();
     } catch (err) {
       console.error('删除优惠券失败:', err);
     }
@@ -517,6 +533,7 @@ const Marketing = () => {
     try {
       await publishCouponApi(id);
       fetchCouponData();
+      fetchCouponStats();
     } catch (err) {
       console.error('投放优惠券失败:', err);
     }
@@ -526,6 +543,7 @@ const Marketing = () => {
     try {
       await offlineCouponApi(id);
       fetchCouponData();
+      fetchCouponStats();
     } catch (err) {
       console.error('下线优惠券失败:', err);
     }
@@ -564,9 +582,10 @@ const Marketing = () => {
   };
 
   // ---------- 统计 ----------
-  const publishedCoupons = couponData.filter((c) => c.status === 'published').length;
-  const totalReceived = couponData.reduce((s, c) => s + (c.receivedCount ?? 0), 0);
-  const totalUsed = couponData.reduce((s, c) => s + (c.usedCount ?? 0), 0);
+  // 统计基于全量优惠券数据，不受筛选条件影响
+  const publishedCoupons = couponStatsData.filter((c) => c.status === 'published').length;
+  const totalReceived = couponStatsData.reduce((s, c) => s + (c.receivedCount ?? 0), 0);
+  const totalUsed = couponStatsData.reduce((s, c) => s + (c.usedCount ?? 0), 0);
   const verifyRate = totalReceived > 0 ? Math.round((totalUsed / totalReceived) * 100) : 0;
 
   // 已投放的券不可编辑关键字段（含派生状态 pending/sold_out/expired，均对应数据库 status=published）

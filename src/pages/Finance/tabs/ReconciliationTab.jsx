@@ -22,6 +22,7 @@ const ReconciliationTab = () => {
   // 手工调账记录（reconciliation 表）
   const [manualData, setManualData] = useState([]);
   const [manualLoading, setManualLoading] = useState(false);
+  const [manualSummary, setManualSummary] = useState({});
   const [modalVisible, setModalVisible] = useState(false);
   const [editingId, setEditingId] = useState(null);
   const [form] = Form.useForm();
@@ -48,6 +49,7 @@ const ReconciliationTab = () => {
     try {
       const res = await getReconciliationListApi({ page: 1, pageSize: 100 });
       setManualData(res?.list || []);
+      setManualSummary(res?.summary || {});
     } catch (e) { console.error(e); } finally { setManualLoading(false); }
   }, []);
 
@@ -95,6 +97,14 @@ const ReconciliationTab = () => {
       void fetchAggData();
     } catch (e) { /* 校验失败或请求失败 */ }
   };
+
+  // 聚合表合计（前端按月汇总）
+  const aggSummary = useMemo(() => {
+    const rentalIncome = aggData.reduce((s, r) => s + Number(r.rentalIncome || 0), 0);
+    const fees = aggData.reduce((s, r) => s + Number(r.fees || 0), 0);
+    const netIncome = aggData.reduce((s, r) => s + Number(r.netIncome || 0), 0);
+    return { rentalIncome, fees, netIncome };
+  }, [aggData]);
 
   // 聚合表列：从 finance_record 自动汇总
   const aggColumns = useMemo(() => [
@@ -180,7 +190,18 @@ const ReconciliationTab = () => {
           style={{ marginBottom: 16 }}
         />
         <Spin spinning={aggLoading}>
-          <Table columns={aggColumns} dataSource={aggData} rowKey="month" scroll={{ x: 1100 }} pagination={false} size="small" />
+          <Table columns={aggColumns} dataSource={aggData} rowKey="month" scroll={{ x: 1100 }} pagination={false} size="small"
+            summary={() => (
+              <Table.Summary fixed>
+                <Table.Summary.Row>
+                  <Table.Summary.Cell index={0}><strong>合计</strong></Table.Summary.Cell>
+                  <Table.Summary.Cell index={1}><strong style={{ color: '#10b981' }}>¥{aggSummary.rentalIncome.toLocaleString()}</strong></Table.Summary.Cell>
+                  <Table.Summary.Cell index={2}><strong style={{ color: '#ef4444' }}>¥{aggSummary.fees.toLocaleString()}</strong></Table.Summary.Cell>
+                  <Table.Summary.Cell index={3}><strong style={{ color: 'var(--amount-color, #c9a96e)' }}>¥{aggSummary.netIncome.toLocaleString()}</strong></Table.Summary.Cell>
+                  <Table.Summary.Cell index={4} colSpan={Math.max(aggColumns.length - 4, 1)} />
+                </Table.Summary.Row>
+              </Table.Summary>
+            )} />
         </Spin>
       </Card>
 
@@ -200,7 +221,18 @@ const ReconciliationTab = () => {
           pagination={{
             showSizeChanger: true, showQuickJumper: true, showTotal: (t) => `共 ${t} 条`,
             pageSizeOptions: ['10', '20', '50', '100'],
-          }} size="small" />
+          }} size="small"
+          summary={() => (
+            <Table.Summary fixed>
+              <Table.Summary.Row>
+                <Table.Summary.Cell index={0}><strong>筛选结果合计</strong></Table.Summary.Cell>
+                <Table.Summary.Cell index={1}><strong style={{ color: '#10b981' }}>¥{Number(manualSummary?.rentalIncomeTotal || 0).toLocaleString()}</strong></Table.Summary.Cell>
+                <Table.Summary.Cell index={2}><strong style={{ color: '#ef4444' }}>¥{Number(manualSummary?.feesTotal || 0).toLocaleString()}</strong></Table.Summary.Cell>
+                <Table.Summary.Cell index={3}><strong style={{ color: 'var(--amount-color, #c9a96e)' }}>¥{Number(manualSummary?.netIncomeTotal || 0).toLocaleString()}</strong></Table.Summary.Cell>
+                <Table.Summary.Cell index={4} colSpan={Math.max(manualColumns.length - 4, 1)} />
+              </Table.Summary.Row>
+            </Table.Summary>
+          )} />
       </Card>
 
       <Modal title={editingId ? '编辑调账记录' : '新增调账记录'} open={modalVisible} onOk={handleSubmit} onCancel={() => setModalVisible(false)} destroyOnClose width={640}>

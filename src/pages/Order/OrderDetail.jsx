@@ -140,7 +140,15 @@ const OrderDetail = () => {
       <Card title="费用信息" variant="borderless" style={{  marginTop: 16 }}>
         <Descriptions bordered column={2}>
           <Descriptions.Item label="租金总额（原价）">¥{order.rentAmount?.toLocaleString() ?? '0'}</Descriptions.Item>
-          <Descriptions.Item label="优惠券折扣">¥{order.couponDiscount?.toLocaleString() ?? '0'}</Descriptions.Item>
+          <Descriptions.Item label="使用优惠券">
+            {Number(order.couponDiscount) > 0 ? (
+              <Space>
+                <Tag color="orange">{order.couponName || '优惠券'}</Tag>
+                {order.couponTypeName && <Tag>{order.couponTypeName}</Tag>}
+                <span style={{ color: 'var(--error-color, #ef4444)', fontWeight: 600 }}>-¥{order.couponDiscount?.toLocaleString()}</span>
+              </Space>
+            ) : '未使用'}
+          </Descriptions.Item>
           <Descriptions.Item label="总金额（实付）">
             <span style={{ color: 'var(--amount-color, #c9a96e)', fontSize: 16, fontWeight: 600 }}>
               ¥{order.totalAmount?.toLocaleString() ?? '0'}

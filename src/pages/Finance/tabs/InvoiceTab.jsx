@@ -17,6 +17,7 @@ const InvoiceTab = () => {
   const [loading, setLoading] = useState(false);
   const [pagination, setPagination] = useState({ page: 1, pageSize: 10 });
   const [total, setTotal] = useState(0);
+  const [summary, setSummary] = useState({});
   const [filterStatus, setFilterStatus] = useState(undefined);
   const [keyword, setKeyword] = useState('');
   const [modalVisible, setModalVisible] = useState(false);
@@ -40,6 +41,7 @@ const InvoiceTab = () => {
       });
       setData(res?.list || []);
       setTotal(res?.total || 0);
+      setSummary(res?.summary || {});
     } catch (e) { console.error(e); }
     setLoading(false);
   }, [pagination, filterStatus, keyword]);
@@ -131,7 +133,16 @@ const InvoiceTab = () => {
           showSizeChanger: true, showQuickJumper: true, showTotal: (t) => `共 ${t} 条`,
           pageSizeOptions: ['10', '20', '50', '100'],
           onChange: (page, pageSize) => setPagination({ page, pageSize }),
-        }} />
+        }}
+        summary={() => (
+          <Table.Summary fixed>
+            <Table.Summary.Row>
+              <Table.Summary.Cell index={0} colSpan={3}><strong>筛选结果合计</strong></Table.Summary.Cell>
+              <Table.Summary.Cell index={1}><strong style={{ color: 'var(--amount-color, #c9a96e)' }}>¥{Number(summary?.amountTotal || 0).toLocaleString()}</strong></Table.Summary.Cell>
+              <Table.Summary.Cell index={2} colSpan={Math.max(columns.length - 4, 1)} />
+            </Table.Summary.Row>
+          </Table.Summary>
+        )} />
       <Modal title={editingId ? '编辑发票' : '新增发票'} open={modalVisible} onOk={handleSubmit} onCancel={() => setModalVisible(false)} destroyOnClose width={640}>
         <Form form={form} layout="vertical" style={{ marginTop: 16 }}>
           <Row gutter={16}>

@@ -15,6 +15,7 @@ import InvoiceTab from './tabs/InvoiceTab';
 import ReconciliationTab from './tabs/ReconciliationTab';
 import CostTab from './tabs/CostTab';
 import ProfitAnalysisTab from './tabs/ProfitAnalysisTab';
+import ActivityTab from './tabs/ActivityTab';
 import { t } from '@/i18n';
 import { formatTime } from '@/utils/formatTime';
 
@@ -27,7 +28,9 @@ const FinanceOverview = () => {
   const [stats, setStats] = useState({});
   const [records, setRecords] = useState([]);
   const [recordTotal, setRecordTotal] = useState(0);
+  const [recordSummary, setRecordSummary] = useState({});
   const [page, setPage] = useState(1);
+  const [pageSize, setPageSize] = useState(10);
   const [recordLoading, setRecordLoading] = useState(false);
   const [filterType, setFilterType] = useState('');
   const [filterDirection, setFilterDirection] = useState(''); // inflow / outflow
@@ -63,10 +66,10 @@ const FinanceOverview = () => {
   const fetchRecords = useCallback(async () => {
     setRecordLoading(true);
     try {
-      const res = await getFinanceRecordsApi({ page, pageSize: 10, type: filterType, direction: filterDirection });
-      setRecords(res?.list || []); setRecordTotal(res?.total || 0);
+      const res = await getFinanceRecordsApi({ page, pageSize, type: filterType, direction: filterDirection });
+      setRecords(res?.list || []); setRecordTotal(res?.total || 0); setRecordSummary(res?.summary || {});
     } catch (e) { console.error(e); } finally { setRecordLoading(false); }
-  }, [page, filterType, filterDirection]);
+  }, [page, pageSize, filterType, filterDirection]);
 
   useEffect(() => { void fetchData(); }, [fetchData]);
   useEffect(() => { void fetchRecords(); }, [fetchRecords]);
@@ -175,14 +178,30 @@ const FinanceOverview = () => {
           <Table columns={recordColumns} dataSource={filteredRecords} rowKey="id" loading={recordLoading} scroll={{ x: 1000 }}
           pagination={{
             current: page,
-            pageSize: 10,
+            pageSize,
             total: recordTotal,
             showSizeChanger: true,
             showQuickJumper: true,
             showTotal: (t) => `共 ${t} 条`,
             pageSizeOptions: ['10', '20', '50', '100'],
-            onChange: (p) => setPage(p),
-          }} />
+            onChange: (p, ps) => { setPage(p); setPageSize(ps); },
+          }}
+          summary={() => (
+            <Table.Summary fixed>
+              <Table.Summary.Row>
+                <Table.Summary.Cell index={0} colSpan={4}><strong>筛选结果合计</strong></Table.Summary.Cell>
+                <Table.Summary.Cell index={1} colSpan={4}>
+                  <strong>
+                    <span style={{ color: 'var(--success-color, #10b981)' }}>流入 ¥{Number(recordSummary?.inflowTotal || 0).toLocaleString()}</span>
+                    <span style={{ margin: '0 8px', color: 'var(--text-secondary, #64748b)' }}>/</span>
+                    <span style={{ color: 'var(--error-color, #ef4444)' }}>流出 ¥{Number(recordSummary?.outflowTotal || 0).toLocaleString()}</span>
+                    <span style={{ margin: '0 8px', color: 'var(--text-secondary, #64748b)' }}>/</span>
+                    <span style={{ color: 'var(--amount-color, #c9a96e)' }}>净额 ¥{Number(recordSummary?.netTotal || 0).toLocaleString()}</span>
+                  </strong>
+                </Table.Summary.Cell>
+              </Table.Summary.Row>
+            </Table.Summary>
+          )} />
           </div>
         </Card>
       </Spin>
@@ -191,7 +210,8 @@ const FinanceOverview = () => {
     { key: 'reconciliation', label: '对账管理', children: <ReconciliationTab /> },
     { key: 'cost', label: '成本统计', children: <CostTab /> },
     { key: 'profit', label: <><PieChartOutlined /> 利润分析</>, children: <ProfitAnalysisTab /> },
-  ], [loading, stats, profitTrend, costComposition, costPeriod, filterType, filterDirection, page, recordTotal, filteredRecords, recordLoading, recordColumns, syncing, handleSyncFinance, hasButtonPermission]);
+    { key: 'activity', label: <><GiftOutlined /> 活动统计</>, children: <ActivityTab /> },
+  ], [loading, stats, profitTrend, costComposition, costPeriod, filterType, filterDirection, page, pageSize, recordTotal, recordSummary, filteredRecords, recordLoading, recordColumns, syncing, handleSyncFinance, hasButtonPermission]);
 
   return (
     <div className="page-container">

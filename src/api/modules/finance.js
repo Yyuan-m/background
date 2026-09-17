@@ -103,6 +103,9 @@ export const getDailyBreakdownApi = (month) => get('/api/finance/daily-breakdown
 /** 获取车型收支分析（按车辆类型分组聚合收入/成本/利润） */
 export const getVehicleTypeBreakdownApi = () => get('/api/finance/vehicle-type-breakdown');
 
+/** 获取活动统计（按月聚合优惠券领取数量与核销数量/优惠金额） */
+export const getActivityStatsApi = (months = 6) => get('/api/finance/activity-stats', { months });
+
 /** 获取仪表盘统计数据 */
 export const getDashboardStatsApi = () => get('/api/statistics/dashboard');
 
@@ -118,14 +121,17 @@ export const getVehicleTypeDataApi = () => get('/api/statistics/vehicle-type');
 /** 获取车型热度排行 */
 export const getVehicleHotDataApi = () => get('/api/statistics/vehicle-hot');
 
-/** 获取客户复购率数据 */
+/** 获取客户租车次数排行（Top10，仅已完成订单） */
 export const getRepurchaseDataApi = () => get('/api/statistics/repurchase-data');
+
+/** 获取优惠券使用统计（每张券的使用次数与优惠总金额，仅已完成订单） */
+export const getCouponUsageApi = () => get('/api/statistics/coupon-usage');
 
 /** 获取高峰时段数据 */
 export const getPeakHoursDataApi = () => get('/api/statistics/peak-hours');
 
-/** 获取最新订单 */
-export const getLatestOrdersApi = () => get('/api/statistics/latest-orders');
+/** 获取最新订单（可选按状态筛选） */
+export const getLatestOrdersApi = (status) => get('/api/statistics/latest-orders', status ? { status } : {});
 
 /** 获取最新客户 */
 export const getLatestCustomersApi = () => get('/api/statistics/latest-customers');

@@ -130,6 +130,13 @@ const ProfitAnalysisTab = () => {
     ) },
   ];
 
+  // 每日明细合计
+  const dailySummary = useMemo(() => (dailyData || []).reduce((acc, item) => ({
+    revenue: acc.revenue + Number(item.revenue || 0),
+    cost: acc.cost + Number(item.cost || 0),
+    profit: acc.profit + Number(item.profit || 0),
+  }), { revenue: 0, cost: 0, profit: 0 }), [dailyData]);
+
   const showEmpty = (mode === 'trend' && trendData.length === 0) || (mode === 'month' && dailyData.length === 0);
 
   return (
@@ -272,6 +279,16 @@ const ProfitAnalysisTab = () => {
                     size="small"
                     pagination={false}
                     scroll={{ x: 600 }}
+                    summary={() => (
+                      <Table.Summary fixed>
+                        <Table.Summary.Row>
+                          <Table.Summary.Cell index={0}><strong>合计</strong></Table.Summary.Cell>
+                          <Table.Summary.Cell index={1}><strong style={{ color: COLOR_REVENUE }}>{fmt(dailySummary.revenue)}</strong></Table.Summary.Cell>
+                          <Table.Summary.Cell index={2}><strong style={{ color: COLOR_COST }}>{fmt(dailySummary.cost)}</strong></Table.Summary.Cell>
+                          <Table.Summary.Cell index={3}><strong style={{ color: dailySummary.profit >= 0 ? COLOR_PROFIT : COLOR_COST }}>{fmt(dailySummary.profit)}</strong></Table.Summary.Cell>
+                        </Table.Summary.Row>
+                      </Table.Summary>
+                    )}
                   />
                 </Card>
               </>

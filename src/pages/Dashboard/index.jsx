@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Row, Col, Card, Table, Tag, Spin, Alert } from 'antd';
+import { Row, Col, Card, Table, Tag, Spin, Alert, Select, Space } from 'antd';
 import {
   ShoppingCartOutlined, CarOutlined, DollarOutlined, RiseOutlined,
   WarningOutlined, ToolOutlined, ClockCircleOutlined,
@@ -15,27 +15,30 @@ import StatCard from '@/components/StatCard';
 // import HomeCarousel from '@/components/HomeCarousel';
 import { getDashboardStatsApi, getOrderTrendApi, getRevenueDataApi, getVehicleTypeDataApi,
   getVehicleHotDataApi, getRepurchaseDataApi, getPeakHoursDataApi,
-  getLatestOrdersApi, getLatestCustomersApi } from '@/api/modules/finance';
+  getLatestOrdersApi, getLatestCustomersApi, getCouponUsageApi } from '@/api/modules/finance';
 import '@/pages/Dashboard/Dashboard.scss';
 import { formatTime } from '@/utils/formatTime';
 import { getChartColor } from '@/utils/chartColors';
 
-// 卡片标题：带快捷跳转箭头
-const CardTitle = ({ icon, title, to }) => {
+// 卡片标题：带快捷跳转箭头，extra（筛选框等）渲染在右箭头左边
+const CardTitle = ({ icon, title, to, extra }) => {
   const navigate = useNavigate();
   return (
     <div className="dashboard-card-title">
       <span>{icon && <span className="dashboard-card-title-icon">{icon}</span>}{title}</span>
-      {to && (
-        <button
-          type="button"
-          className="dashboard-card-jump"
-          onClick={() => navigate(to)}
-          aria-label={`跳转到${title}`}
-        >
-          <ArrowRightOutlined />
-        </button>
-      )}
+      <span className="dashboard-card-title-actions">
+        {extra}
+        {to && (
+          <button
+            type="button"
+            className="dashboard-card-jump"
+            onClick={() => navigate(to)}
+            aria-label={`跳转到${title}`}
+          >
+            <ArrowRightOutlined />
+          </button>
+        )}
+      </span>
     </div>
   );
 };
@@ -51,22 +54,42 @@ const Dashboard = () => {
   const [peakHoursData, setPeakHoursData] = useState([]);
   const [latestOrders, setLatestOrders] = useState([]);
   const [latestCustomers, setLatestCustomers] = useState([]);
+  const [couponUsageData, setCouponUsageData] = useState([]);
+  const [couponStatusFilter, setCouponStatusFilter] = useState('');
+  const [couponTypeFilter, setCouponTypeFilter] = useState('');
+  // 最新订单状态筛选，默认显示租赁中的订单
+  const [latestOrderStatus, setLatestOrderStatus] = useState('renting');
 
   const fetchData = useCallback(async () => {
     setLoading(true);
     try {
-      const [statsRes, trendRes, revenueRes, typeRes, hotRes, repurchaseRes, peakRes, ordersRes, customersRes] = await Promise.all([
+      const [statsRes, trendRes, revenueRes, typeRes, hotRes, repurchaseRes, peakRes, customersRes, couponRes] = await Promise.all([
         getDashboardStatsApi(), getOrderTrendApi(), getRevenueDataApi(), getVehicleTypeDataApi(),
         getVehicleHotDataApi(), getRepurchaseDataApi(), getPeakHoursDataApi(),
-        getLatestOrdersApi(), getLatestCustomersApi(),
+        getLatestCustomersApi(), getCouponUsageApi(),
       ]);
       setStats(statsRes || {}); setOrderTrend(trendRes || []); setRevenueData(revenueRes || []);
       setVehicleTypeData(typeRes || []); setVehicleHotData(hotRes || []); setRepurchaseData(repurchaseRes || []);
-      setPeakHoursData(peakRes || []); setLatestOrders(ordersRes || []); setLatestCustomers(customersRes || []);
+      setPeakHoursData(peakRes || []); setLatestCustomers(customersRes || []);
+      setCouponUsageData(couponRes || []);
     } catch (e) { console.error(e); } finally { setLoading(false); }
   }, []);
 
+  // 最新订单独立请求：状态筛选变化时只刷新该卡片
+  const fetchLatestOrders = useCallback(async () => {
+    const res = await getLatestOrdersApi(latestOrderStatus);
+    setLatestOrders(res || []);
+  }, [latestOrderStatus]);
+
   useEffect(() => { void fetchData(); }, [fetchData]);
+  useEffect(() => { void fetchLatestOrders(); }, [fetchLatestOrders]);
+
+  // 优惠券图筛选：按上线状态（published 已投放 / offline 已下线 / draft 草稿）与券类型（discount 折扣 / deduction 满减 / duration 时长）
+  const filteredCouponData = useMemo(() => (couponUsageData || []).filter((c) => {
+    if (couponStatusFilter && c.status !== couponStatusFilter) return false;
+    if (couponTypeFilter && c.type !== couponTypeFilter) return false;
+    return true;
+  }), [couponUsageData, couponStatusFilter, couponTypeFilter]);
 
   const statusMap = useMemo(() => ({
     pending: { text: '待支付', color: 'orange' }, paid: { text: '已支付', color: 'blue' },
@@ -132,6 +155,71 @@ const Dashboard = () => {
           </Col>
         </Row>
 
+        {/* 优惠券使用统计（库里全部优惠券，含未使用；使用次数与优惠总金额仅统计已完成订单） */}
+        <Row gutter={[16, 16]} style={{ marginTop: 16 }}>
+          <Col span={24}>
+            <Card
+              title={(
+                <CardTitle
+                  title="优惠券使用统计"
+                  extra={(
+                    <Space wrap>
+                      <Select
+                        size="small"
+                        value={couponStatusFilter || undefined}
+                        onChange={(v) => setCouponStatusFilter(v || '')}
+                        allowClear
+                        placeholder="上线状态"
+                        style={{ width: 110 }}
+                        options={[
+                          { value: 'published', label: '已投放' },
+                          { value: 'offline', label: '已下线' },
+                          { value: 'draft', label: '草稿' },
+                        ]}
+                      />
+                      <Select
+                        size="small"
+                        value={couponTypeFilter || undefined}
+                        onChange={(v) => setCouponTypeFilter(v || '')}
+                        allowClear
+                        placeholder="券类型"
+                        style={{ width: 100 }}
+                        options={[
+                          { value: 'discount', label: '折扣券' },
+                          { value: 'deduction', label: '满减券' },
+                          { value: 'duration', label: '时长券' },
+                        ]}
+                      />
+                    </Space>
+                  )}
+                />
+              )}
+              variant="borderless"
+              className="chart-card"
+            >
+              <div style={{ fontSize: 12, color: 'var(--text-secondary, #64748b)', marginBottom: 8 }}>
+                统计规则：列出库里全部优惠券（含未使用），使用次数与优惠总金额仅统计已完成订单
+              </div>
+              {filteredCouponData.length === 0 ? (
+                <div style={{ textAlign: 'center', color: 'var(--text-secondary, #64748b)', padding: '40px 0' }}>暂无符合条件的优惠券</div>
+              ) : (
+                <ResponsiveContainer width="100%" height={280}>
+                  <BarChart data={filteredCouponData}>
+                    <CartesianGrid strokeDasharray="3 3" stroke="var(--chart-grid, #f0f0f0)" />
+                    <XAxis dataKey="name" tick={{ fontSize: 11 }} interval={0} angle={-15} textAnchor="end" height={50} />
+                    <YAxis yAxisId="count" tick={{ fontSize: 11 }} allowDecimals={false} label={{ value: '使用次数', angle: -90, position: 'insideLeft', fontSize: 12, fill: 'var(--text-secondary, #64748b)' }} />
+                    <YAxis yAxisId="amount" orientation="right" tick={{ fontSize: 11 }} tickFormatter={(v) => `¥${Number(v).toLocaleString()}`} label={{ value: '优惠金额', angle: 90, position: 'insideRight', fontSize: 12, fill: 'var(--text-secondary, #64748b)' }} />
+                    <Tooltip formatter={(value, name) => name === '优惠总金额' ? `¥${Number(value).toLocaleString()}` : `${value} 次`} />
+                    <Legend />
+                    <Bar yAxisId="count" dataKey="usedCount" name="使用次数" fill="var(--chart-color-1, #1a365d)" radius={[4, 4, 0, 0]} />
+                    <Bar yAxisId="amount" dataKey="discountTotal" name="优惠总金额" fill="#fa8c16" radius={[4, 4, 0, 0]} />
+                  </BarChart>
+                </ResponsiveContainer>
+              )}
+            </Card>
+          </Col>
+        </Row>
+
         {/* 订单趋势 + 车辆占比 */}
         <Row gutter={[16, 16]} style={{ marginTop: 16 }}>
           <Col xs={24} lg={16}>
@@ -192,13 +280,16 @@ const Dashboard = () => {
             </Card>
           </Col>
           <Col xs={24} lg={8}>
-            <Card title={<CardTitle title="客户复购率" to="/customers" />} variant="borderless" className="chart-card">
+            <Card title={<CardTitle title="客户租车次数排行" to="/customers" />} variant="borderless" className="chart-card">
               <ResponsiveContainer width="100%" height={260}>
                 <PieChart>
-                  <Pie data={repurchaseData} cx="50%" cy="50%" innerRadius={45} outerRadius={80} paddingAngle={2} dataKey="value" label={({ name, value }) => `${name}: ${value}`}>
+                  <Pie data={repurchaseData} cx="50%" cy="45%" innerRadius={15} outerRadius={80} paddingAngle={2} dataKey="value" roseType="radius"
+                    label={({ name, value }) => `${name}: ${value}次`}
+                    fontSize={12}
+                    labelLine={{ stroke: 'var(--text-secondary, #94a3b8)', strokeWidth: 1 }}>
                     {repurchaseData.map((entry, index) => <Cell key={index} fill={getChartColor(index, entry.color)} />)}
                   </Pie>
-                  <Tooltip />
+                  <Tooltip formatter={(value, name) => [`${value} 次`, name]} />
                 </PieChart>
               </ResponsiveContainer>
             </Card>
@@ -208,7 +299,32 @@ const Dashboard = () => {
         {/* 实时动态 */}
         <Row gutter={[16, 16]} style={{ marginTop: 16 }}>
           <Col xs={24} lg={12}>
-            <Card title={<CardTitle title="最新订单" to="/orders" />} variant="borderless" className="table-card">
+            <Card
+              title={(
+                <CardTitle
+                  title="最新订单"
+                  to="/orders"
+                  extra={(
+                    <Select
+                      size="small"
+                      value={latestOrderStatus}
+                      onChange={setLatestOrderStatus}
+                      style={{ width: 110 }}
+                      options={[
+                        { value: '', label: '全部' },
+                        { value: 'pending', label: '待支付' },
+                        { value: 'renting', label: '租赁中' },
+                        { value: 'completed', label: '已完成' },
+                        { value: 'cancelled', label: '已取消' },
+                        { value: 'overdue', label: '已逾期' },
+                      ]}
+                    />
+                  )}
+                />
+              )}
+              variant="borderless"
+              className="table-card"
+            >
               <Table columns={orderColumns} dataSource={latestOrders} rowKey="id" pagination={false} size="small" scroll={{ x: 600 }} />
             </Card>
           </Col>
