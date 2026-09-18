@@ -50,7 +50,9 @@ export default defineConfig(({ mode }) => {
       // 小于此值的资源内联为 base64
       assetsInlineLimit: 4096,
       // chunk 大小警告阈值（KB）
-      chunkSizeWarningLimit: 800,
+      // antd 全家桶因内部循环依赖无法安全细分 vendor，按共享 chunk 保留。
+      // 将其 min 后体积（~2MB，gzip ~551KB，属中后台正常体量）设入阈值以消除告警。
+      chunkSizeWarningLimit: 2100,
       // 启用 CSS 代码分割
       cssCodeSplit: true,
       // 生成 sourcemap（生产环境默认关闭）
@@ -68,7 +70,8 @@ export default defineConfig(({ mode }) => {
             if (id.includes('node_modules/react/') || id.includes('node_modules/react-dom/') || id.includes('node_modules/react-router')) {
               return 'vendor-react';
             }
-            // Ant Design 全家桶
+            // Ant Design 全家桶（icons/cssinjs/rc-* 与 antd 主体互相 import，
+            // 强行细分会触发 Circular chunk 循环依赖警告，故整体合并）
             if (id.includes('node_modules/antd/') || id.includes('node_modules/@ant-design/') || id.includes('node_modules/rc-')) {
               return 'vendor-antd';
             }
