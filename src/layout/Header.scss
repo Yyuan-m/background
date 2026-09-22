@@ -9,4 +9,17 @@
   .user-dropdown:hover {
     background: var(--bg-hover, #f5f5f5) !important;
   }
+
+  // 全局搜索框：antd v6 下 AutoComplete 根节点为 flex，且其内容高度会沿 flex
+  // 布局被 header 拉伸到整栏高度。这里显式固定为正常控件高度并垂直居中，
+  // 打断高度链的 stretch 传递，避免搜索框撑满整个 header。
+  .header-search.ant-select {
+    height: 32px;
+    align-self: center;
+  }
+  .header-search .ant-select-content,
+  .header-search .ant-select-content > .ant-input-affix-wrapper,
+  .header-search .ant-select-selection-search-input {
+    height: 32px;
+  }
 }

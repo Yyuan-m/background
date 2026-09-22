@@ -142,6 +142,7 @@ const Header = () => {
             onFocus={() => keyword.trim() && setOpen(true)}
             style={{ width: 240 }}
             dropdownMatchSelectWidth={300}
+            className="header-search"
           >
             <Input
               prefix={<SearchOutlined style={{ color: 'var(--text-muted, #bbb)' }} />}

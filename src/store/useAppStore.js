@@ -33,6 +33,10 @@ const loadSidebarCollapsed = () => {
 
 const savedTabs = loadTabs();
 
+// 菜单拉取单飞标记：loadMenuTree / refreshMenuTree 并发时共用同一个 Promise，
+// 保证同一时刻对 /api/system/menu/user-menus 只发一次真实请求（登录期去重，防止接口风暴）
+let menuFetchPromise = null;
+
 // 将扁平菜单列表转换为侧边栏 Menu 组件格式（type='button' 的按钮权限行不参与渲染）
 const buildSidebarMenu = (list) => {
   if (!list || list.length === 0) return [];
@@ -122,31 +126,51 @@ const useAppStore = create((set, get) => ({
   menuLoading: false,
 
   // 从后端加载当前用户可见的菜单树（后端已按权限过滤）
+  //
+  // 单飞去重：MainLayout 与 HomeRedirect 等会在登录时同时触发加载，
+  // 通过共享的 menuFetchPromise 折叠成一次真实请求，避免重复调用
+  // /api/system/menu/user-menus 导致的接口风暴与登录期崩溃。
   loadMenuTree: async () => {
+    if (menuFetchPromise) return menuFetchPromise;
     set({ menuLoading: true });
-    try {
-      const data = await getUserMenusApi();
-      const tree = buildSidebarMenu(data);
-      set({ menuTree: tree });
-    } catch {
-      // 菜单加载失败时保持空菜单
-    } finally {
-      set({ menuLoading: false });
-    }
+    menuFetchPromise = (async () => {
+      try {
+        const data = await getUserMenusApi();
+        set({ menuTree: buildSidebarMenu(data) });
+        return data;
+      } catch {
+        // 菜单加载失败时保持空菜单
+        return null;
+      } finally {
+        set({ menuLoading: false });
+        menuFetchPromise = null;
+      }
+    })();
+    return menuFetchPromise;
   },
 
   // 静默刷新菜单树：不置 menuLoading、内容无变化时不替换数组引用，
-  // 避免侧边栏出现 Spin 闪烁/菜单重新挂载（供权限轮询调用，用户无感知）
+  // 避免侧边栏出现 Spin 闪烁/菜单重新挂载（供权限轮询调用，用户无感知）。
+  // 同样参与单飞去重：加载/刷新进行中时复用同一次请求。
   refreshMenuTree: async () => {
-    try {
-      const data = await getUserMenusApi();
-      const tree = buildSidebarMenu(data);
-      const { menuTree: current } = get();
-      // 深比较：结构一致则不更新 state，避免无意义的重渲染
-      if (JSON.stringify(current) !== JSON.stringify(tree)) {
-        set({ menuTree: tree });
+    if (menuFetchPromise) {
+      await menuFetchPromise;
+      return;
+    }
+    menuFetchPromise = (async () => {
+      try {
+        const data = await getUserMenusApi();
+        const tree = buildSidebarMenu(data);
+        const { menuTree: current } = get();
+        // 深比较：结构一致则不更新 state，避免无意义的重渲染
+        if (JSON.stringify(current) !== JSON.stringify(tree)) {
+          set({ menuTree: tree });
+        }
+      } finally {
+        menuFetchPromise = null;
       }
-    } catch { /* ignore */ }
+    })();
+    await menuFetchPromise;
   },
 
   // 切换账号/登出时重置用户相关状态：清空标签页（含 localStorage）和菜单树，
