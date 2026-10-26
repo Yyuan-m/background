@@ -27,6 +27,10 @@ export default defineConfig(({ mode }) => {
       host: true,
       port: 3001,
       open: true,
+      allowedHosts: [
+        '72299b2f.r26.cpolar.top' ,
+        '.cpolar.top' // 允许 cpolar 所有临时域名，免去每次改
+      ],
       // 开发代理：将 /api 和 /uploads 请求转发到后端服务
       // 切换后端时，修改下方 target 的 IP 和端口即可
       proxy: {
