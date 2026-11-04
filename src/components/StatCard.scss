@@ -83,4 +83,112 @@
       outline-offset: 2px;
     }
   }
+
+  // 仪表盘专用：数字保持正文色，强调色只出现在色条、图标和货币符号上
+  &.stat-card--premium {
+    position: relative;
+    overflow: hidden;
+    border-radius: 16px;
+    border-color: color-mix(in srgb, var(--stat-accent, var(--primary-color, #3b82f6)) 22%, var(--border-color, #e2e8f0));
+    background: linear-gradient(
+      165deg,
+      color-mix(in srgb, var(--stat-accent, #3b82f6) 9%, var(--bg-container, #ffffff)) 0%,
+      var(--bg-container, #ffffff) 46%
+    );
+    box-shadow:
+      0 1px 1px rgba(0, 0, 0, 0.03),
+      0 12px 32px rgba(0, 0, 0, 0.05);
+
+    .ant-card-body {
+      position: relative;
+      z-index: 1;
+      padding: 20px 20px 18px 22px;
+    }
+
+    .stat-card-rail {
+      position: absolute;
+      top: 18px;
+      bottom: 18px;
+      left: 0;
+      width: 3px;
+      border-radius: 0 3px 3px 0;
+      background: linear-gradient(
+        180deg,
+        var(--stat-accent, #3b82f6),
+        color-mix(in srgb, var(--stat-accent, #3b82f6) 35%, transparent)
+      );
+    }
+
+    .stat-card-glow {
+      position: absolute;
+      top: -48px;
+      right: -36px;
+      width: 150px;
+      height: 150px;
+      border-radius: 50%;
+      background: radial-gradient(circle, color-mix(in srgb, var(--stat-accent, #3b82f6) 30%, transparent), transparent 68%);
+      pointer-events: none;
+    }
+
+    .stat-card-icon {
+      width: 46px;
+      height: 46px;
+      border-radius: 14px;
+      font-size: 20px;
+      color: var(--stat-accent, #3b82f6);
+      background: color-mix(in srgb, var(--stat-accent, #3b82f6) 14%, transparent);
+      box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--stat-accent, #3b82f6) 24%, transparent);
+    }
+
+    .stat-card-title {
+      font-size: 12px;
+      font-weight: 600;
+      letter-spacing: 0.06em;
+    }
+
+    .stat-card-value {
+      color: var(--text-primary, #0f172a);
+      font-size: 30px;
+      font-weight: 650;
+      letter-spacing: -0.045em;
+      font-variant-numeric: tabular-nums;
+    }
+
+    .stat-card-prefix,
+    .stat-card-suffix {
+      color: var(--stat-accent, #3b82f6);
+      font-size: 15px;
+      font-weight: 600;
+    }
+
+    .stat-card-caption {
+      margin-top: 6px;
+      font-size: 12px;
+      line-height: 1.4;
+      color: var(--text-muted, #94a3b8);
+    }
+
+    .stat-card-arrow {
+      color: var(--text-muted, #94a3b8);
+      opacity: 0.7;
+    }
+
+    &:hover {
+      transform: translateY(-3px);
+      background: linear-gradient(
+        165deg,
+        color-mix(in srgb, var(--stat-accent, #3b82f6) 12%, var(--bg-container, #ffffff)) 0%,
+        var(--bg-container, #ffffff) 50%
+      );
+      border-color: color-mix(in srgb, var(--stat-accent, #3b82f6) 42%, var(--border-color, #e2e8f0));
+      box-shadow:
+        0 1px 1px rgba(0, 0, 0, 0.03),
+        0 18px 40px color-mix(in srgb, var(--stat-accent, #3b82f6) 16%, rgba(0, 0, 0, 0.08));
+    }
+
+    &.stat-card-clickable:hover .stat-card-arrow {
+      color: var(--stat-accent, #3b82f6);
+      opacity: 1;
+    }
+  }
 }
